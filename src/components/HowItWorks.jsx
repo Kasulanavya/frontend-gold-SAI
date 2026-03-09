@@ -1,84 +1,99 @@
-import React from "react";
+import { motion } from "framer-motion";
+import { UserPlus, Wallet, Coins, Download } from "lucide-react";
 
-function HowItWorks() {
-  const steps = [
-    {
-      number: "01",
-      title: "Create Account",
-      desc: "Sign up in minutes with secure verification and KYC process.",
-      icon: "👤",
-    },
-    {
-      number: "02",
-      title: "Add Funds",
-      desc: "Deposit money via bank transfer, card, or digital wallet.",
-      icon: "💳",
-    },
-    {
-      number: "03",
-      title: "Buy Digital Gold",
-      desc: "Purchase gold at current market rates with instant execution.",
-      icon: "🪙",
-    },
-    {
-      number: "04",
-      title: "Sell Anytime",
-      desc: "Convert back to cash whenever you want at competitive rates.",
-      icon: "📈",
-    },
-  ];
+const steps = [
+  {
+    icon: UserPlus,
+    title: "Create an Account",
+    desc: "Sign up and verify your identity in minutes with a simple KYC process.",
+    number: "01",
+  },
+  {
+    icon: Wallet,
+    title: "Add Funds",
+    desc: "Securely add money through UPI, bank transfer, or digital payment methods.",
+    number: "02",
+  },
+  {
+    icon: Coins,
+    title: "Buy Digital Gold",
+    desc: "Purchase gold instantly at live market prices — start from as low as ₹10.",
+    number: "03",
+  },
+  {
+    icon: Download,
+    title: "Sell Anytime",
+    desc: "Sell your gold anytime and receive instant payouts directly to your bank.",
+    number: "04",
+  },
+];
 
+export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 lg:py-32">
-      <div className="max-w-7xl mx-auto px-4">
+    <section className="bg-black text-white py-28 px-6 lg:px-20 relative overflow-hidden">
 
-        {/* Section Title */}
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-white">
-            How It Works
-          </h2>
-        </div>
+      {/* gold background glow */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full"></div>
 
-        {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {steps.map((step, index) => (
-            <div key={index} className="relative text-center group">
+      <div className="max-w-7xl mx-auto relative z-10">
 
-              <div className="bg-black border border-white/10 rounded-2xl p-8 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:border-yellow-400/60 hover:shadow-yellow-500/20">
+        {/* label */}
+        <p className="text-center text-yellow-400 tracking-widest font-semibold mb-4">
+          SIMPLE PROCESS
+        </p>
 
-                {/* Step Number */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold">
+        {/* heading */}
+        <h2 className="text-center text-4xl lg:text-5xl font-bold mb-4">
+          How It <span className="text-yellow-400">Works</span>
+        </h2>
+
+        <p className="text-center text-gray-400 mb-16">
+          Start investing in digital gold in just four simple steps
+        </p>
+
+        {/* cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                viewport={{ once: true }}
+                className="relative bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-10 hover:border-yellow-500/40 transition duration-300"
+              >
+
+                {/* background number */}
+                <span className="absolute right-8 top-6 text-7xl font-bold text-gray-800 opacity-30">
                   {step.number}
+                </span>
+
+                {/* icon */}
+                <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-yellow-500 text-black shadow-[0_0_30px_rgba(255,200,0,0.5)] mb-6">
+                  <Icon size={28} />
                 </div>
 
-                <div className="pt-8">
+                {/* title */}
+                <h3 className="text-xl font-semibold mb-3">
+                  {step.title}
+                </h3>
 
-                  {/* Icon */}
-                  <div className="text-3xl mb-4 group-hover:scale-110 transition">
-                    {step.icon}
-                  </div>
+                {/* description */}
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  {step.desc}
+                </p>
 
-                  {/* Title */}
-                  <h3 className="text-xl font-semibold text-white mb-3">
-                    {step.title}
-                  </h3>
+              </motion.div>
+            );
+          })}
 
-                  {/* Description */}
-                  <p className="text-white/70">
-                    {step.desc}
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-          ))}
         </div>
 
       </div>
     </section>
   );
 }
-
-export default HowItWorks;
