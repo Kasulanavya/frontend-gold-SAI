@@ -1,70 +1,113 @@
-import React from "react";
+import { motion } from "framer-motion";
+import { Award, Globe, Shield, Lock, CheckCircle } from "lucide-react";
 
-function TrustSecurity() {
-  const features = [
-    {
-      icon: "🏆",
-      title: "24K 99.99% Purity",
-      desc: "Invest in the purest gold available, verified by independent assayers.",
-    },
-    {
-      icon: "🔒",
-      title: "Secure Vault Storage",
-      desc: "Bank-grade security with your gold stored in certified vaults worldwide.",
-    },
-    {
-      icon: "🛡️",
-      title: "Fully Insured",
-      desc: "Your investment is completely protected with comprehensive insurance coverage.",
-    },
-    {
-      icon: "📊",
-      title: "Transparent Pricing",
-      desc: "Real-time market prices with no hidden fees or commissions.",
-    },
-  ];
+const features = [
+  {
+    icon: Award,
+    title: "24K 99.99% Purity",
+    desc: "Highest quality gold standard",
+  },
+  {
+    icon: Globe,
+    title: "Indian Gold Bullion",
+    desc: "International standards compliant",
+  },
+  {
+    icon: Shield,
+    title: "Insured Vaults",
+    desc: "Fully insured digital gold",
+  },
+  {
+    icon: Lock,
+    title: "Secure Storage",
+    desc: "International vault storage",
+  },
+  {
+    icon: CheckCircle,
+    title: "Verified Transactions",
+    desc: "Bank-grade encryption",
+  },
+];
 
+export default function Guarantee() {
   return (
-    <section className="py-20 lg:py-32 bg-black/50">
-      <div className="max-w-7xl mx-auto px-4">
+    <section className="relative bg-black text-white py-28 px-6 lg:px-20 overflow-hidden">
 
-        {/* Section Title */}
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6 text-white">
-            Trust & Security
-          </h2>
-          <p className="text-white/70 max-w-3xl mx-auto">
-            Every aspect of your investment is protected with industry-leading security and transparency.
-          </p>
-        </div>
+      {/* BIG GOLD BACKGROUND GLOWS */}
 
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {features.map((feature, index) => (
-            <div key={index} className="group">
-              <div className="bg-black border border-white/10 rounded-2xl p-8 text-center transition-all duration-300 hover:-translate-y-2 hover:border-yellow-400/60 hover:shadow-[0_0_25px_rgba(255,215,0,0.25)]">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-yellow-500 opacity-15 blur-[220px] rounded-full"></div>
 
-                {/* Icon */}
-                <div className="text-3xl mb-4 group-hover:scale-110 transition">
-                  {feature.icon}
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-yellow-500 opacity-10 blur-[180px] rounded-full"></div>
+
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-yellow-500 opacity-10 blur-[180px] rounded-full"></div>
+
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+
+        {/* top label */}
+
+        <p className="text-center text-yellow-400 tracking-[4px] font-semibold mb-4">
+          TRUSTED & CERTIFIED
+        </p>
+
+        {/* heading */}
+
+        <h2 className="text-center text-4xl lg:text-5xl font-bold mb-16">
+          Your Gold, Our{" "}
+          <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 bg-clip-text text-transparent">
+            Guarantee
+          </span>
+        </h2>
+
+        {/* cards */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                viewport={{ once: true }}
+                className="relative bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-8 text-center hover:border-yellow-500/40 transition duration-300 group"
+              >
+
+                {/* CARD GOLD GLOW */}
+
+                <div className="absolute -inset-6 bg-yellow-500 opacity-0 blur-[80px] rounded-3xl group-hover:opacity-20 transition"></div>
+
+
+                {/* icon */}
+
+                <div className="relative w-16 h-16 mx-auto flex items-center justify-center rounded-xl bg-yellow-500/10 mb-6 group-hover:bg-yellow-500/20 transition shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+
+                  <Icon size={30} className="text-yellow-400" />
+
                 </div>
 
-                {/* Title */}
-                <h3 className="text-xl font-semibold mb-3 text-white">
+                {/* title */}
+
+                <h3 className="text-lg font-semibold mb-2">
                   {feature.title}
                 </h3>
 
-                {/* Description */}
-                <p className="text-white/70">{feature.desc}</p>
+                {/* description */}
 
-              </div>
-            </div>
-          ))}
+                <p className="text-gray-400 text-sm">
+                  {feature.desc}
+                </p>
+
+              </motion.div>
+            );
+          })}
+
         </div>
 
       </div>
     </section>
   );
 }
-
-export default TrustSecurity;

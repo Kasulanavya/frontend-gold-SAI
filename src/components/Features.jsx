@@ -1,76 +1,104 @@
-import React from "react";
+import { motion } from "framer-motion";
+import { TrendingUp, Zap, Shield, Coins, Clock, Eye } from "lucide-react";
 
-function Features() {
-  const features = [
-    {
-      icon: "📈",
-      title: "Real-Time Gold Prices",
-      desc: "Monitor gold prices 24/7 with live updates.",
-    },
-    {
-      icon: "🔐",
-      title: "Secure Storage",
-      desc: "Bank-grade vault security for your gold.",
-    },
-    {
-      icon: "⚡",
-      title: "Instant Buy/Sell",
-      desc: "Trade gold instantly at live market prices.",
-    },
-    {
-      icon: "💰",
-      title: "Low Investment",
-      desc: "Start investing with as little as ₹10.",
-    },
-    {
-      icon: "🔍",
-      title: "Transparent Fees",
-      desc: "No hidden charges or commissions.",
-    },
-    {
-      icon: "📱",
-      title: "Mobile Access",
-      desc: "Manage investments anywhere.",
-    },
-  ];
+const features = [
+  {
+    icon: TrendingUp,
+    title: "Real-Time Price Tracking",
+    desc: "Monitor gold prices live with up-to-the-minute market data and smart alerts.",
+  },
+  {
+    icon: Zap,
+    title: "Instant Gold Purchase",
+    desc: "Buy digital gold instantly with just a tap — no waiting, no paperwork.",
+  },
+  {
+    icon: Shield,
+    title: "Secure Insured Storage",
+    desc: "Your gold is stored in internationally certified, fully insured vaults.",
+  },
+  {
+    icon: Coins,
+    title: "Start from ₹10",
+    desc: "Begin your gold investment journey with as little as ten rupees.",
+  },
+  {
+    icon: Clock,
+    title: "Sell Gold Anytime",
+    desc: "Liquidate your gold holdings 24/7 and get instant bank payouts.",
+  },
+  {
+    icon: Eye,
+    title: "Transparent Pricing",
+    desc: "No hidden fees or charges. What you see is exactly what you pay.",
+  },
+];
 
+export default function Features() {
   return (
-    <section id="features" className="py-20 lg:py-32 bg-black/50">
-      <div className="max-w-7xl mx-auto px-4">
+    <section className="bg-black text-white py-28 px-6 lg:px-20 relative overflow-hidden">
 
-        {/* Section Title */}
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-white">
-            Platform Features
-          </h2>
+      {/* background gold glow */}
+      <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full"></div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+
+        {/* label */}
+        <p className="text-center text-yellow-400 tracking-widest font-semibold mb-4">
+          PLATFORM FEATURES
+        </p>
+
+        {/* heading */}
+        <h2 className="text-center text-4xl lg:text-5xl font-bold mb-4">
+          Everything You Need to{" "}
+          <span className="text-yellow-400">Invest</span>
+        </h2>
+
+        {/* subtitle */}
+        <p className="text-center text-gray-400 mb-16">
+          A complete digital gold investment experience built for modern investors
+        </p>
+
+        {/* cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-10 hover:border-yellow-500/40 transition duration-300 group"
+              >
+
+                {/* icon */}
+                <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-yellow-500/10 mb-6 group-hover:bg-yellow-500/20 transition">
+
+                  <Icon size={26} className="text-yellow-400" />
+
+                </div>
+
+                {/* title */}
+                <h3 className="text-xl font-semibold mb-3">
+                  {feature.title}
+                </h3>
+
+                {/* description */}
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  {feature.desc}
+                </p>
+
+              </motion.div>
+            );
+          })}
+
         </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="bg-black border border-white/10 rounded-2xl p-8 text-center transition-all duration-300 hover:-translate-y-2 hover:border-yellow-400/60 hover:shadow-[0_0_25px_rgba(255,215,0,0.25)]"
-            >
-              <div className="text-3xl mb-4">
-                {feature.icon}
-              </div>
-
-              <h3 className="text-xl font-semibold text-white mb-3">
-                {feature.title}
-              </h3>
-
-              <p className="text-white/70">
-                {feature.desc}
-              </p>
-            </div>
-          ))}
-
-        </div>
       </div>
     </section>
   );
 }
-
-export default Features;
