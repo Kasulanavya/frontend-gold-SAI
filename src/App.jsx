@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
+import Dashboard from "./pages/Dashboard";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import TrustSecurity from "./components/TrustSecurity";
@@ -77,7 +77,7 @@ function App() {
     <Router>
 <ScrollToSection />
       <Routes>
-
+<Route path="/dashboard" element={<Dashboard />} />
         <Route path="/" element={<HomePage />} />
 
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
