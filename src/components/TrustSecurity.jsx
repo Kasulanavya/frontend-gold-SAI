@@ -1,61 +1,69 @@
+import { Award, Globe, Shield, Lock, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { UserPlus, Wallet, Coins, Download } from "lucide-react";
-
-const steps = [
+const features = [
   {
-    icon: UserPlus,
-    title: "Create an Account",
-    desc: "Sign up and verify your identity in minutes with a simple KYC process.",
-    number: "01",
+    icon: Award,
+    title: "24K 99.99% Purity",
+    desc: "Highest quality gold standard",
   },
   {
-    icon: Wallet,
-    title: "Add Funds",
-    desc: "Securely add money through UPI, bank transfer, or digital payment methods.",
-    number: "02",
+    icon: Globe,
+    title: "Indian Gold Bullion",
+    desc: "International standards compliant",
   },
   {
-    icon: Coins,
-    title: "Buy Digital Gold",
-    desc: "Purchase gold instantly at live market prices — start from as low as ₹10.",
-    number: "03",
+    icon: Shield,
+    title: "Insured Vaults",
+    desc: "Fully insured digital gold",
   },
   {
-    icon: Download,
-    title: "Sell Anytime",
-    desc: "Sell your gold anytime and receive instant payouts directly to your bank.",
-    number: "04",
+    icon: Lock,
+    title: "Secure Storage",
+    desc: "International vault storage",
+  },
+  {
+    icon: CheckCircle,
+    title: "Verified Transactions",
+    desc: "Bank-grade encryption",
   },
 ];
 
-export default function HowItWorks() {
+export default function Guarantee() {
   return (
-    <section className="bg-black text-white py-28 px-6 lg:px-20 relative overflow-hidden">
+    <section className="relative bg-black text-white py-28 px-6 lg:px-20 overflow-hidden">
 
-      {/* gold background glow */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full"></div>
+      {/* BIG GOLD BACKGROUND GLOWS */}
 
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-yellow-500 opacity-15 blur-[220px] rounded-full"></div>
 
-        {/* label */}
-        <p className="text-center text-yellow-400 tracking-widest font-semibold mb-4">
-          SIMPLE PROCESS
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-yellow-500 opacity-10 blur-[180px] rounded-full"></div>
+
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-yellow-500 opacity-10 blur-[180px] rounded-full"></div>
+
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+
+        {/* top label */}
+
+        <p className="text-center text-yellow-400 tracking-[4px] font-semibold mb-4">
+          TRUSTED & CERTIFIED
         </p>
 
         {/* heading */}
-        <h2 className="text-center text-4xl lg:text-5xl font-bold mb-4">
-          How It <span className="text-yellow-400">Works</span>
+
+        <h2 className="text-center text-4xl lg:text-5xl font-bold mb-16">
+          Your Gold, Our{" "}
+          <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 bg-clip-text text-transparent">
+            Guarantee
+          </span>
         </h2>
 
-        <p className="text-center text-gray-400 mb-16">
-          Start investing in digital gold in just four simple steps
-        </p>
-
         {/* cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
 
-          {steps.map((step, index) => {
-            const Icon = step.icon;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
 
             return (
               <motion.div
@@ -64,27 +72,32 @@ export default function HowItWorks() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.15 }}
                 viewport={{ once: true }}
-                className="relative bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-10 hover:border-yellow-500/40 transition duration-300"
+                className="relative bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-8 text-center hover:border-yellow-500/40 transition duration-300 group"
               >
 
-                {/* background number */}
-                <span className="absolute right-8 top-6 text-7xl font-bold text-gray-800 opacity-30">
-                  {step.number}
-                </span>
+                {/* CARD GOLD GLOW */}
+
+                <div className="absolute -inset-6 bg-yellow-500 opacity-0 blur-[80px] rounded-3xl group-hover:opacity-20 transition"></div>
+
 
                 {/* icon */}
-                <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-yellow-500 text-black shadow-[0_0_30px_rgba(255,200,0,0.5)] mb-6">
-                  <Icon size={28} />
+
+                <div className="relative w-16 h-16 mx-auto flex items-center justify-center rounded-xl bg-yellow-500/10 mb-6 group-hover:bg-yellow-500/20 transition shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+
+                  <Icon size={30} className="text-yellow-400" />
+
                 </div>
 
                 {/* title */}
-                <h3 className="text-xl font-semibold mb-3">
-                  {step.title}
+
+                <h3 className="text-lg font-semibold mb-2">
+                  {feature.title}
                 </h3>
 
                 {/* description */}
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {step.desc}
+
+                <p className="text-gray-400 text-sm">
+                  {feature.desc}
                 </p>
 
               </motion.div>

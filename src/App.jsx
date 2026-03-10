@@ -8,20 +8,52 @@ import MobileApp from "./components/MobileApp";
 import Testimonials from "./components/Testimonials";
 import FAQ from "./components/FAQ";
 import Footer from "./components/Footer";
+import Whysabbpegold from "./components/Whysabbpegold";
 
 function App() {
   return (
     <div className="bg-black text-white">
+
       <Navbar />
-      <Hero />
+
+      <section id="home">
+        <Hero />
+      </section>
+
       <TrustSecurity />
-      <HowItWorks />
-      <Features />
-      <GoldPriceWidget />
-      <MobileApp />
-      <Testimonials />
-      <FAQ />
-      <Footer />
+
+      <section id="how-it-works">
+        <HowItWorks />
+      </section>
+
+      <section id="features">
+        <Features />
+      </section>
+
+      <section id="gold-prices">
+        <GoldPriceWidget />
+      </section>
+
+      <section id="why-sabpegold">
+        <Whysabbpegold />
+      </section>
+
+      <section id="mobile-app">
+        <MobileApp />
+      </section>
+
+      <section id="testimonials">
+        <Testimonials />
+      </section>
+
+      <section id="faq">
+        <FAQ />
+      </section>
+
+      <section id="contact">
+        <Footer />
+      </section>
+
     </div>
   );
 }
