@@ -3,8 +3,8 @@ import { ArrowRight, Play, TrendingUp, Shield, Coins, Star } from "lucide-react"
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen bg-black text-white flex items-center overflow-hidden px-6 lg:px-20">
-
+    // <section className="relative min-h-screen bg-black text-white flex items-center overflow-hidden px-6 lg:px-20">
+<section className="relative min-h-screen bg-black text-white flex items-center overflow-hidden px-6 lg:px-20 pt-28 lg:pt-32">
       {/* BIG GOLD BACKGROUND GLOWS */}
 
       <div className="absolute top-32 right-10 w-[650px] h-[650px] bg-yellow-500 opacity-20 blur-[220px] rounded-full"></div>
@@ -23,15 +23,28 @@ export default function Hero() {
         >
 
           {/* Badge */}
-
-          <div className="inline-flex items-center gap-2 border border-yellow-500/40 text-yellow-400 px-5 py-2 rounded-full mb-6 bg-yellow-500/5 shadow-[0_0_20px_rgba(234,179,8,0.25)]">
+<div className="inline-flex items-center gap-2 border border-yellow-500/40 text-yellow-400 px-5 py-2 rounded-full mb-6 bg-yellow-500/5 shadow-[0_0_20px_rgba(234,179,8,0.25)] w-fit">
+          {/* <div className="inline-flex items-center gap-2 border border-yellow-500/40 text-yellow-400 px-5 py-2 rounded-full mb-6 bg-yellow-500/5 shadow-[0_0_20px_rgba(234,179,8,0.25)]"> */}
             <TrendingUp size={16} />
             India's Trusted Digital Gold Platform
           </div>
 
           {/* Heading */}
+<h1 className="text-5xl lg:text-6xl font-bold leading-tight">
 
-          <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+  <span className="text-white">Invest in </span>
+
+  <span className="text-white">Pure</span>
+
+  <br />
+
+  <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 bg-clip-text text-transparent">
+    Digital Gold
+  </span>{" "}
+  <span className="text-white">with SabPe</span>
+
+</h1>
+          {/* <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
 
             Invest in{" "}
             <span className="text-white">Pure</span>
@@ -43,7 +56,7 @@ export default function Hero() {
             </span>{" "}
             with SabPe
 
-          </h1>
+          </h1> */}
 
           {/* Description */}
 
