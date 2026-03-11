@@ -4,7 +4,7 @@ function Profile() {
 
   const user = {
     name: "Rahul Sharma",
-    email: "rahul@example.com",
+    email: "rahul@gmail.com",
     gold: "37.5 g",
     portfolio: "₹2,45,830",
     returns: "+12.4%"
