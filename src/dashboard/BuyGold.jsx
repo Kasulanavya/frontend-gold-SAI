@@ -4,12 +4,11 @@ import { Coins, TrendingUp } from "lucide-react";
 function BuyGold() {
 
   const goldPrice = 6554;
-  const [amount, setAmount] = useState(5000);
-
-  const grams = (amount / goldPrice).toFixed(3);
-  const gst = (amount * 0.03).toFixed(2);
-  const total = (Number(amount) + Number(gst)).toFixed(2);
-
+  const [amount, setAmount] = useState(5000.00);
+const grams = (Number(amount) / goldPrice).toFixed(3);
+const gst = (Number(amount) * 0.03).toFixed(2);
+const total = (Number(amount) + Number(gst)).toFixed(2);
+  
   return (
 
     <div className="max-w-5xl mx-auto space-y-10">
@@ -76,13 +75,30 @@ function BuyGold() {
           <label className="text-white/60 text-sm">
             Enter Amount
           </label>
+<div className="relative mt-2">
 
-          <input
-            type="number"
-            value={amount}
-            onChange={(e)=>setAmount(e.target.value)}
-            className="w-full mt-2 bg-black border border-white/10 rounded-lg px-4 py-3 text-lg focus:border-yellow-400 outline-none"
-          />
+  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60">
+    ₹
+  </span>
+
+  <input
+    type="text"
+    value={amount}
+    placeholder="Enter amount"
+    onChange={(e) => {
+      const val = e.target.value.replace(/[^0-9.]/g, "");
+      setAmount(val);
+    }}
+    onBlur={() => {
+      if (amount) {
+        setAmount(Number(amount).toFixed(2));
+      }
+    }}
+    className="w-full pl-8 bg-black border border-white/10 rounded-lg px-4 py-3 text-lg focus:border-yellow-400 outline-none"
+  />
+
+</div>
+         
 
         </div>
 

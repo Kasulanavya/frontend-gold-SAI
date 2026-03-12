@@ -29,7 +29,7 @@ function SellGold() {
             </p>
 
             <h2 className="text-4xl font-bold text-yellow-400 mt-1">
-              {goldOwned} grams
+              {goldOwned.toFixed(3)} grams
             </h2>
 
           </div>
