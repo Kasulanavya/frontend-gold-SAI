@@ -2,26 +2,18 @@ import API_BASE from "./config";
 
 /* ---------------- GET GOLD RATES ---------------- */
 
-// export const getGoldRates = async () => {
-
-//   const response = await fetch(`${API_BASE}/v1/augmont/rates`);
-
-//   const data = await response.json();
-
-//   return data.payload.result.data;
-
-// };
 export const getGoldRates = async () => {
 
   const response = await fetch(`${API_BASE}/v1/augmont/rates`);
 
   const data = await response.json();
 
-  console.log("Rates API Response:", data); // important for debugging
+  console.log("Rates API Response:", data);
 
   return data.payload.result.data;
 
 };
+
 
 /* ---------------- GET PRODUCTS ---------------- */
 
@@ -35,7 +27,8 @@ export const getProducts = async () => {
 
 };
 
-/* ---------------- CREATE USER ---------------- */
+
+/* ---------------- CREATE USER (SIGNUP) ---------------- */
 
 export const createUser = async (userData) => {
 
@@ -50,6 +43,7 @@ export const createUser = async (userData) => {
   return response.json();
 
 };
+
 
 /* ---------------- BUY GOLD ---------------- */
 
@@ -67,6 +61,7 @@ export const buyGold = async (payload) => {
 
 };
 
+
 /* ---------------- SELL GOLD ---------------- */
 
 export const sellGold = async (payload) => {
@@ -82,6 +77,7 @@ export const sellGold = async (payload) => {
   return response.json();
 
 };
+
 
 /* ---------------- PORTFOLIO ---------------- */
 
@@ -114,5 +110,27 @@ export const getSellTransactions = async (uniqueId) => {
 
   const res = await fetch(`http://localhost:8080/v1/augmont/sell/users/${uniqueId}`);
   return await res.json();
+
+};
+
+
+/* ---------------- LOGIN ---------------- */
+
+export const loginUser = async (email, password) => {
+
+  const response = await fetch(`${API_BASE}/v1/augmont/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email,
+      password
+    })
+  });
+
+  const data = await response.json();
+
+  return data;
 
 };
