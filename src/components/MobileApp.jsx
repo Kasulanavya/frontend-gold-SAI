@@ -102,6 +102,14 @@ function MobileApp() {
                   <motion.button
                     whileHover={{ scale: 1.08 }}
                     className="flex-1 bg-yellow-400 text-black py-2 rounded-lg font-semibold"
+                    onClick={() => {
+                      const isLoggedIn = localStorage.getItem("isLoggedIn");
+                      if (isLoggedIn === "true") {
+                        window.location.href = "/dashboard?tab=buy";
+                      } else {
+                        window.location.href = "/login";
+                      }
+                    }}
                   >
                     Buy Gold
                   </motion.button>
@@ -109,6 +117,14 @@ function MobileApp() {
                   <motion.button
                     whileHover={{ scale: 1.08 }}
                     className="flex-1 bg-neutral-800 py-2 rounded-lg"
+                    onClick={() => {
+                      const isLoggedIn = localStorage.getItem("isLoggedIn");
+                      if (isLoggedIn === "true") {
+                        window.location.href = "/dashboard?tab=sell";
+                      } else {
+                        window.location.href = "/login";
+                      }
+                    }}
                   >
                     Sell Gold
                   </motion.button>

@@ -1,104 +1,128 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck, Wallet, Mail, TrendingUp } from "lucide-react";
 
 export default function Profile() {
   const [user, setUser] = useState({
     name: "Rahul Sharma",
     email: "rahul@gmail.com",
-    gold: "37.005 gm",
-    portfolio: "₹2,45,830",
-    returns: "+12.4%",
+    gold: "0.000 gm",
+    portfolio: "₹0",
   });
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch (e) {
-      // ignore
-    }
+    const updateFromStorage = () => {
+      const storedGold = Number(localStorage.getItem("goldBalance") || 0);
+      const storedPrice = Number(localStorage.getItem("goldPrice") || 0);
+      const portfolioValue = storedPrice ? storedGold * storedPrice : 0;
+
+      setUser((prev) => ({
+        ...prev,
+        gold: `${storedGold.toFixed(3)} gm`,
+        portfolio: `₹${portfolioValue.toLocaleString()}`,
+      }));
+    };
+
+    updateFromStorage();
+    window.addEventListener("goldBalanceUpdated", updateFromStorage);
+    return () =>
+      window.removeEventListener("goldBalanceUpdated", updateFromStorage);
   }, []);
 
   return (
-    <div className="space-y-10 max-w-6xl mx-auto">
-      {/* PROFILE HERO */}
-      <div className="relative bg-gradient-to-br from-[#111] to-[#0b0b0b] border border-yellow-500/20 rounded-3xl p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-[300px] h-[300px] bg-yellow-500/20 blur-[120px] rounded-full" />
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-yellow-400 text-black flex items-center justify-center text-3xl font-bold">
-            {user.name.charAt(0)}
+    <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
+
+      {/* 🔥 HEADER */}
+      <div className="bg-gradient-to-r from-yellow-500/20 to-transparent border border-yellow-400/20 rounded-3xl p-6 flex justify-between items-center">
+        <div>
+          <p className="text-xs text-white/50 uppercase tracking-widest">
+            Welcome back
+          </p>
+          <h1 className="text-3xl font-bold text-white mt-1">
+            {user.name}
+          </h1>
+          <p className="text-white/60 mt-1">{user.email}</p>
+        </div>
+
+        <div className="w-16 h-16 rounded-full bg-yellow-400 text-black flex items-center justify-center text-xl font-bold shadow-lg">
+          {user.name.charAt(0)}
+        </div>
+      </div>
+
+      {/* 🔥 STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="bg-[#111] p-5 rounded-2xl border border-white/10 hover:scale-105 transition">
+          <p className="text-white/50 text-xs">Portfolio Value</p>
+          <h2 className="text-xl font-bold text-yellow-400 mt-1">
+            {user.portfolio}
+          </h2>
+        </div>
+
+        <div className="bg-[#111] p-5 rounded-2xl border border-white/10 hover:scale-105 transition">
+          <p className="text-white/50 text-xs">Gold Balance</p>
+          <h2 className="text-xl font-bold mt-1">
+            {user.gold}
+          </h2>
+        </div>
+
+        <div className="bg-[#111] p-5 rounded-2xl border border-white/10 hover:scale-105 transition">
+          <p className="text-white/50 text-xs">Account Type</p>
+          <h2 className="text-xl font-bold mt-1 text-green-400">
+            Premium
+          </h2>
+        </div>
+      </div>
+
+      {/* 🔥 MAIN GRID */}
+      <div className="grid lg:grid-cols-2 gap-6">
+
+        {/* 🔥 HOLDINGS CARD */}
+        <div className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-white/10 rounded-3xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Your Holdings</h2>
+
+          <div className="flex justify-between text-sm text-white/60 mb-2">
+            <span>Gold</span>
+            <span>{user.gold}</span>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold">{user.name}</h2>
-            <p className="text-white/60">{user.email}</p>
-            <div className="flex items-center gap-2 mt-2 text-green-400 text-sm">
-              <ShieldCheck size={16} />
-              Pan Card Verified
+
+          <div className="flex justify-between text-sm text-white/60 mb-2">
+            <span>Portfolio Value</span>
+            <span>{user.portfolio}</span>
+          </div>
+
+          <div className="mt-6">
+            <button className="w-full bg-yellow-500 text-black py-3 rounded-xl font-semibold hover:scale-105 transition">
+              Manage Investments
+            </button>
+          </div>
+        </div>
+
+        {/* 🔥 SECURITY CARD */}
+        <div className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-white/10 rounded-3xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Account Security</h2>
+
+          <div className="space-y-4 text-sm text-white/60">
+            <div className="flex justify-between">
+              <span>Password</span>
+              <span>Updated recently</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span>2FA</span>
+              <span className="text-green-400">Enabled</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span>KYC Status</span>
+              <span className="text-green-400">Verified</span>
             </div>
           </div>
+
+          <button className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-xl transition">
+            Security Settings
+          </button>
         </div>
 
-        <div className="text-right mt-8 lg:mt-0">
-          <p className="text-white/60 text-sm">Portfolio Value</p>
-          <h3 className="text-3xl font-bold text-yellow-400">{user.portfolio}</h3>
-          <p className="text-green-400 text-sm flex items-center justify-end gap-1">
-            <TrendingUp size={14} /> {user.returns}
-          </p>
-        </div>
       </div>
 
-      {/* ACCOUNT STATS */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-[#111] border border-white/10 rounded-xl p-6 flex items-center gap-4">
-          <Wallet className="text-yellow-400" />
-          <div>
-            <p className="text-white/60 text-sm">Gold Balance</p>
-            <p className="text-xl font-semibold">{user.gold}</p>
-          </div>
-        </div>
-
-        <div className="bg-[#111] border border-white/10 rounded-xl p-6 flex items-center gap-4">
-          <Mail className="text-yellow-400" />
-          <div>
-            <p className="text-white/60 text-sm">Email Address</p>
-            <p className="text-xl font-semibold">{user.email}</p>
-          </div>
-        </div>
-
-        <div className="bg-[#111] border border-white/10 rounded-xl p-6 flex items-center gap-4">
-          <ShieldCheck className="text-yellow-400" />
-          <div>
-            <p className="text-white/60 text-sm">Account Security</p>
-            <p className="text-xl font-semibold text-green-400">Secure</p>
-          </div>
-        </div>
-      </div>
-
-      {/* SECURITY PANEL */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl p-8">
-        <h3 className="text-xl font-semibold mb-6">Security Settings</h3>
-        <div className="space-y-5 text-sm">
-          <div className="flex justify-between border-b border-white/10 pb-3">
-            <span>Password</span>
-            <span className="text-white/60">Last updated 30 days ago</span>
-          </div>
-          <div className="flex justify-between border-b border-white/10 pb-3">
-            <span>Two Factor Authentication</span>
-            <span className="text-yellow-400">Enabled</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Pan Card Verification</span>
-            <span className="text-green-400">Verified</span>
-          </div>
-        </div>
-      </div>
-
-      <button className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-semibold px-10 py-4 rounded-full shadow-[0_0_30px_rgba(234,179,8,0.5)] hover:scale-105 transition">
-        Edit Profile
-      </button>
     </div>
   );
 }

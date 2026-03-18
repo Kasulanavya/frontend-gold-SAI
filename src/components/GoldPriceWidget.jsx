@@ -216,11 +216,32 @@ function GoldPriceWidget() {
           className="flex gap-6 mt-14 flex-col sm:flex-row"
         >
 
-          <button className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-semibold px-8 py-4 rounded-full hover:scale-105 transition">
+
+          <button
+            className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-semibold px-8 py-4 rounded-full hover:scale-105 transition"
+            onClick={() => {
+              const isLoggedIn = localStorage.getItem("isLoggedIn");
+              if (isLoggedIn === "true") {
+                window.location.href = "/dashboard?tab=buy";
+              } else {
+                window.location.href = "/login";
+              }
+            }}
+          >
             Buy Gold Now
           </button>
 
-          <button className="flex-1 border border-yellow-500 text-yellow-400 px-8 py-4 rounded-full hover:bg-yellow-500 hover:text-black transition">
+          <button
+            className="flex-1 border border-yellow-500 text-yellow-400 px-8 py-4 rounded-full hover:bg-yellow-500 hover:text-black transition"
+            onClick={() => {
+              const isLoggedIn = localStorage.getItem("isLoggedIn");
+              if (isLoggedIn === "true") {
+                window.location.href = "/dashboard?tab=sell";
+              } else {
+                window.location.href = "/login";
+              }
+            }}
+          >
             Sell Gold
           </button>
 
