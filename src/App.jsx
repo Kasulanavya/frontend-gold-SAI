@@ -47,17 +47,44 @@ import Products from "./pages/Products";
 function HomePage() {
   return (
     <div className="bg-black text-white">
+
       <Navbar />
 
+      {/* HERO */}
       <Hero />
-      <DashboardPreview />
-      <TrustSecurity />
-      <GoldPriceWidget />
-      <MobileApp />
-      <Testimonials />
 
-      <CTA />
+      {/* DASHBOARD PREVIEW */}
+      <div className="py-6">
+        <DashboardPreview />
+      </div>
+
+      {/* TRUST */}
+      <div className="py-6">
+        <TrustSecurity />
+      </div>
+
+      {/* GOLD PRICE */}
+      <div className="py-6">
+        <GoldPriceWidget />
+      </div>
+
+      {/* MOBILE APP */}
+      <div className="py-6">
+        <MobileApp />
+      </div>
+
+      {/* TESTIMONIALS */}
+      <div className="py-6">
+        <Testimonials />
+      </div>
+
+      {/* CTA */}
+      <div className="py-10">
+        <CTA />
+      </div>
+
       <Footer />
+
     </div>
   );
 }
