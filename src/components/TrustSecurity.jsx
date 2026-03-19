@@ -30,7 +30,7 @@ const features = [
 
 export default function Guarantee() {
   return (
-    <section className="relative bg-black text-white py-28 px-6 lg:px-20 overflow-hidden">
+    <section className="relative bg-black text-white py-16 px-6 lg:px-20 overflow-hidden">
 
       {/* BIG GOLD BACKGROUND GLOWS */}
 

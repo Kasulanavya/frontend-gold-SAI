@@ -38,7 +38,7 @@ function FAQ() {
   ];
 
   return (
-    <section id="faq" className="py-24 bg-black">
+    <section id="faq" className="py-20 bg-black">
 
       <div className="max-w-5xl mx-auto px-4">
 

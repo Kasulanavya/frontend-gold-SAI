@@ -33,7 +33,7 @@ const cardAnimation = {
 
 function GoldPriceWidget() {
   return (
-    <section className="py-28 bg-black text-white">
+    <section className="py-16 bg-black text-white">
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Header */}

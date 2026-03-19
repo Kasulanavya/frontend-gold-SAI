@@ -9,72 +9,65 @@ const testimonials = [
     role: "Small Business Owner",
     initials: "PS",
     rating: 5,
-    text: `"SabPe Gold made gold investing so simple. I started with just ₹500 and now have a growing portfolio. The app is incredibly easy to use!"`
+    text: "SabPe Gold made gold investing so simple. I started with just ₹500 and now have a growing portfolio."
   },
   {
     name: "Rajesh Kumar",
     role: "Software Engineer",
     initials: "RK",
     rating: 5,
-    text: `"The live price tracking and instant buy feature are fantastic. I love that my gold is stored in insured vaults. Truly trustworthy platform."`
+    text: "The live price tracking and instant buy feature are fantastic. Truly trustworthy platform."
   },
   {
     name: "Anita Desai",
     role: "Teacher",
     initials: "AD",
     rating: 5,
-    text: `"I was always hesitant about digital gold, but SabPe's transparency and 24K purity guarantee won me over. Great experience so far!"`
+    text: "Transparency and 24K purity guarantee won me over. Great experience!"
   },
   {
     name: "Vikram Patel",
     role: "Freelancer",
     initials: "VP",
     rating: 4,
-    text: `"Selling gold and getting instant payouts is a game changer. SabPe Gold is my go-to platform for gold investments now."`
+    text: "Selling gold and getting instant payouts is a game changer."
   }
 ];
 
 export default function Testimonials() {
   return (
-    <section className="bg-black text-white py-28">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="bg-black text-white py-12">
+      <div className="max-w-7xl mx-auto px-4">
 
-        {/* HEADER */}
-
-        <div className="text-center mb-16">
-          <p className="text-yellow-500 tracking-widest font-semibold">
+        {/* 🔥 HEADER */}
+        <div className="mb-8">
+          <p className="text-yellow-500 text-xs tracking-widest font-semibold">
             TESTIMONIALS
           </p>
 
-          <h2 className="text-4xl lg:text-5xl font-bold mt-2">
+          <h2 className="text-2xl md:text-3xl font-bold mt-2">
             Loved by <span className="text-yellow-400">Investors</span>
           </h2>
-
-          <p className="text-gray-400 mt-4">
-            Hear from our community of gold investors across India
-          </p>
         </div>
 
-        {/* TESTIMONIAL CARDS */}
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* 🔥 HORIZONTAL SCROLL */}
+        <div className="flex gap-4 overflow-x-auto pb-4">
 
           {testimonials.map((item, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.15 }}
-              className="bg-[#111] border border-white/10 rounded-2xl p-6 hover:border-yellow-500/30 transition"
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="min-w-[260px] max-w-[280px] bg-[#111] border border-white/10 rounded-xl p-4 hover:border-yellow-500/30 transition"
             >
 
-              {/* STARS */}
-
-              <div className="flex mb-4">
+              {/* ⭐ STARS */}
+              <div className="flex mb-3">
                 {[...Array(5)].map((_, index) => (
                   <Star
                     key={index}
-                    size={16}
+                    size={14}
                     className={`mr-1 ${
                       index < item.rating
                         ? "text-yellow-400 fill-yellow-400"
@@ -84,25 +77,21 @@ export default function Testimonials() {
                 ))}
               </div>
 
-              {/* TEXT */}
-
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+              {/* 💬 TEXT */}
+              <p className="text-gray-400 text-xs leading-relaxed mb-4">
                 {item.text}
               </p>
 
-              {/* USER */}
-
-              <div className="flex items-center gap-3">
-
-                <div className="bg-yellow-500/10 text-yellow-400 w-10 h-10 rounded-full flex items-center justify-center font-semibold">
+              {/* 👤 USER */}
+              <div className="flex items-center gap-2">
+                <div className="bg-yellow-500/10 text-yellow-400 w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold">
                   {item.initials}
                 </div>
 
                 <div>
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="text-gray-400 text-sm">{item.role}</p>
+                  <p className="text-sm font-semibold">{item.name}</p>
+                  <p className="text-gray-400 text-xs">{item.role}</p>
                 </div>
-
               </div>
 
             </motion.div>

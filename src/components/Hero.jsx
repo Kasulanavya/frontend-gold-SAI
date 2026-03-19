@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Play, TrendingUp, Shield, Coins, Star } from "lucide-react";
 
+
+
 export default function Hero() {
 
   const navigate = useNavigate();
@@ -75,11 +77,10 @@ export default function Hero() {
               </span>
             </button>
 
-            {/* Learn More */}
-            <button className="flex items-center gap-2 border border-gray-700 px-7 py-3 rounded-full hover:bg-white/5 transition">
-              <Play size={18} />
-              Learn More
-            </button>
+<button onClick={() => navigate("/learn-more")}>
+  Learn More
+</button>
+
 
           </div>
 

@@ -2,60 +2,29 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
 function Navbar() {
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const navigate = useNavigate();
 
-  const closeMenu = () => setMenuOpen(false);
-
-  // check login status
   const isLoggedIn = localStorage.getItem("isLoggedIn");
 
   useEffect(() => {
-
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
 
     window.addEventListener("scroll", handleScroll);
-
     return () => window.removeEventListener("scroll", handleScroll);
-
   }, []);
 
-  const goToSection = (id) => {
-
-    navigate("/");
-
-    setTimeout(() => {
-
-      const element = document.getElementById(id);
-
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-
-    }, 100);
-
-    setMenuOpen(false);
-
-  };
-
-  // LOGOUT FUNCTION
   const handleLogout = () => {
-
     localStorage.removeItem("isLoggedIn");
-
     navigate("/");
-
     window.location.reload();
-
   };
 
   return (
-
     <nav
       className={`fixed top-0 w-full z-50 transition ${
         isScrolled
@@ -63,78 +32,49 @@ function Navbar() {
           : "bg-transparent"
       }`}
     >
-
       <div className="max-w-7xl mx-auto px-4">
-
         <div className="flex items-center justify-between h-20">
 
-          {/* Logo */}
-
-          <div
-            onClick={() => goToSection("home")}
-            className="flex items-center gap-3 cursor-pointer"
-          >
-
+          {/* LOGO */}
+          <Link to="/" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-yellow-400 text-black font-bold flex items-center justify-center rounded-lg">
               SG
             </div>
-
             <div className="text-xl font-semibold">
               <span className="text-white">SabPe</span>
               <span className="text-yellow-400"> Gold</span>
             </div>
+          </Link>
 
-          </div>
-
-          {/* Desktop Menu */}
-
+          {/* DESKTOP MENU */}
           <div className="hidden lg:flex items-center space-x-8">
 
-            <button
-              onClick={() => goToSection("home")}
-              className="text-white/80 hover:text-yellow-400"
-            >
+            <Link to="/" className="text-white/80 hover:text-yellow-400">
               Home
-            </button>
+            </Link>
 
-            <Link
-              to="/products"
-              className="text-white/80 hover:text-yellow-400"
-            >
+            <Link to="/products" className="text-white/80 hover:text-yellow-400">
               Products
             </Link>
 
-            <button
-              onClick={() => goToSection("features")}
-              className="text-white/80 hover:text-yellow-400"
-            >
+            <Link to="/features" className="text-white/80 hover:text-yellow-400">
               Features
-            </button>
+            </Link>
 
-            <button
-              onClick={() => goToSection("how-it-works")}
-              className="text-white/80 hover:text-yellow-400"
-            >
+            <Link to="/how-it-works" className="text-white/80 hover:text-yellow-400">
               How It Works
-            </button>
+            </Link>
 
-            <button
-              onClick={() => goToSection("gold-prices")}
-              className="text-white/80 hover:text-yellow-400"
-            >
-              Gold Prices
-            </button>
+            <Link to="/why" className="text-white/80 hover:text-yellow-400">
+              Why SabPe
+            </Link>
 
-            <button
-              onClick={() => goToSection("faq")}
-              className="text-white/80 hover:text-yellow-400"
-            >
+            <Link to="/faq" className="text-white/80 hover:text-yellow-400">
               FAQ
-            </button>
+            </Link>
 
-            {/* AUTH BUTTONS */}
-
-            {!isLoggedIn && (
+            {/* AUTH */}
+            {!isLoggedIn ? (
               <>
                 <Link
                   to="/login"
@@ -150,9 +90,7 @@ function Navbar() {
                   Start Investing
                 </Link>
               </>
-            )}
-
-            {isLoggedIn && (
+            ) : (
               <>
                 <Link
                   to="/dashboard"
@@ -163,102 +101,64 @@ function Navbar() {
 
                 <button
                   onClick={handleLogout}
-                  className="text-white border border-red-500 px-5 py-2 rounded-full hover:bg-red-500 hover:text-white transition"
+                  className="text-white border border-red-500 px-5 py-2 rounded-full hover:bg-red-500 transition"
                 >
                   Logout
                 </button>
               </>
             )}
-
           </div>
 
-          {/* Hamburger */}
-
+          {/* MOBILE MENU BUTTON */}
           <button
             className="lg:hidden text-white text-3xl"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? "✕" : "☰"}
           </button>
-
         </div>
 
-        {/* Mobile Menu */}
-
+        {/* MOBILE MENU */}
         {menuOpen && (
-
           <div className="lg:hidden bg-black border-t border-white/10 py-6 flex flex-col items-center space-y-6">
 
-            <button
-              onClick={() => goToSection("home")}
-              className="text-white text-lg"
-            >
+            <Link to="/" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               Home
-            </button>
+            </Link>
 
-            <Link
-              to="/products"
-              onClick={closeMenu}
-              className="text-white text-lg"
-            >
+            <Link to="/products" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               Products
             </Link>
 
-            <button
-              onClick={() => goToSection("features")}
-              className="text-white text-lg"
-            >
+            <Link to="/features" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               Features
-            </button>
+            </Link>
 
-            <button
-              onClick={() => goToSection("how-it-works")}
-              className="text-white text-lg"
-            >
+            <Link to="/how-it-works" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               How It Works
-            </button>
+            </Link>
 
-            <button
-              onClick={() => goToSection("gold-prices")}
-              className="text-white text-lg"
-            >
-              Gold Prices
-            </button>
+            <Link to="/why" onClick={() => setMenuOpen(false)} className="text-white text-lg">
+              Why SabPe
+            </Link>
 
-            <button
-              onClick={() => goToSection("faq")}
-              className="text-white text-lg"
-            >
+            <Link to="/faq" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               FAQ
-            </button>
+            </Link>
 
-            {!isLoggedIn && (
+            {!isLoggedIn ? (
               <>
-                <Link
-                  to="/login"
-                  onClick={closeMenu}
-                  className="text-white border border-yellow-400 px-6 py-2 rounded-full"
-                >
+                <Link to="/login" className="text-white border border-yellow-400 px-6 py-2 rounded-full">
                   Login
                 </Link>
 
-                <Link
-                  to="/signup"
-                  onClick={closeMenu}
-                  className="bg-yellow-400 text-black px-6 py-3 rounded-full font-semibold"
-                >
+                <Link to="/signup" className="bg-yellow-400 text-black px-6 py-3 rounded-full font-semibold">
                   Start Investing
                 </Link>
               </>
-            )}
-
-            {isLoggedIn && (
+            ) : (
               <>
-                <Link
-                  to="/dashboard"
-                  onClick={closeMenu}
-                  className="bg-yellow-400 text-black px-6 py-3 rounded-full font-semibold"
-                >
+                <Link to="/dashboard" className="bg-yellow-400 text-black px-6 py-3 rounded-full font-semibold">
                   Dashboard
                 </Link>
 
@@ -270,15 +170,10 @@ function Navbar() {
                 </button>
               </>
             )}
-
           </div>
-
         )}
-
       </div>
-
     </nav>
-
   );
 }
 

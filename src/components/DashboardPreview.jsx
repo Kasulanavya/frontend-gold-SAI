@@ -24,7 +24,7 @@ export default function DashboardPreview() {
   ];
 
   return (
-    <section className="bg-black text-white py-28 px-6 lg:px-20 relative overflow-hidden">
+    <section className="bg-black text-white py-16 px-6 lg:px-20 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full pointer-events-none" />
 
       <div className="max-w-7xl mx-auto relative z-10">

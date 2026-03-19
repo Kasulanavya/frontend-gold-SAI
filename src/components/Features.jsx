@@ -36,7 +36,7 @@ const features = [
 
 export default function Features() {
   return (
-    <section className="bg-black text-white py-28 px-6 lg:px-20 relative overflow-hidden">
+    <section className="bg-black text-white py-16 px-6 lg:px-20 relative overflow-hidden">
 
       {/* background gold glow */}
       <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full"></div>
