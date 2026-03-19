@@ -19,27 +19,9 @@ export default function Dashboard() {
 
         {/* 🔥 TABS */}
         <div className="flex gap-4 bg-[#111] p-2 rounded-xl w-fit">
-          <Link
-            to="/dashboard"
-            className={`px-4 py-2 rounded-lg ${
-              location.pathname === "/dashboard"
-                ? "bg-yellow-500 text-black font-semibold"
-                : "text-white/60"
-            }`}
-          >
-            Portfolio
-          </Link>
+          
 
-          <Link
-            to="/dashboard/profile"
-            className={`px-4 py-2 rounded-lg ${
-              location.pathname === "/dashboard/profile"
-                ? "bg-yellow-500 text-black font-semibold"
-                : "text-white/60"
-            }`}
-          >
-            Profile
-          </Link>
+          
         </div>
 
         {/* 🔥 PAGE CONTENT */}

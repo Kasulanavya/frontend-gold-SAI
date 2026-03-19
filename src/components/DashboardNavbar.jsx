@@ -6,7 +6,7 @@ function DashboardNavbar() {
 
   const tabs = [
     { to: "/dashboard", label: "Portfolio", end: true },
-    { to: "/dashboard/profile", label: "Profile" },
+    
   ];
 
   const handleLogout = () => {

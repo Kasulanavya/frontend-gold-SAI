@@ -11,13 +11,13 @@ import {
 import Dashboard from "./pages/Dashboard";
 import Portfolio from "./dashboard/Portfolio";
 import LearnMore from "./pages/LearnMore";
-import Profile from "./dashboard/Profile";
+
 
 // MAIN COMPONENTS
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import TrustSecurity from "./components/TrustSecurity";
-import DashboardPreview from "./components/DashboardPreview";
+
 import GoldPriceWidget from "./components/GoldPriceWidget";
 import MobileApp from "./components/MobileApp";
 import Testimonials from "./components/Testimonials";
@@ -29,6 +29,7 @@ import FeaturesPage from "./pages/Featurespage";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import WhyPage from "./pages/Whypage";
 import FAQPage from "./pages/FAQPage";
+import MobilePage from "./pages/MobilePage";
 
 // AUTH
 import Login from "./pages/Login";
@@ -53,10 +54,7 @@ function HomePage() {
       {/* HERO */}
       <Hero />
 
-      {/* DASHBOARD PREVIEW */}
-      <div className="py-6">
-        <DashboardPreview />
-      </div>
+      
 
       {/* TRUST */}
       <div className="py-6">
@@ -68,10 +66,6 @@ function HomePage() {
         <GoldPriceWidget />
       </div>
 
-      {/* MOBILE APP */}
-      <div className="py-6">
-        <MobileApp />
-      </div>
 
       {/* TESTIMONIALS */}
       <div className="py-6">
@@ -102,9 +96,9 @@ function App() {
         {/* DASHBOARD */}
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<Portfolio />} />
-          <Route path="profile" element={<Profile />} />
+          
         </Route>
-
+        <Route path="/mobile" element={<MobilePage />} />
         {/* 🔥 NEW PAGES */}
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />

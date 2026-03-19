@@ -9,6 +9,8 @@ function Navbar() {
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
 
+  const userInitial = "R"; // later make dynamic
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -57,6 +59,10 @@ function Navbar() {
               Products
             </Link>
 
+            <Link to="/mobile" className="text-white/80 hover:text-yellow-400">
+  Mobile App
+</Link>
+
             <Link to="/features" className="text-white/80 hover:text-yellow-400">
               Features
             </Link>
@@ -91,21 +97,32 @@ function Navbar() {
                 </Link>
               </>
             ) : (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="bg-yellow-400 text-black px-6 py-2 rounded-full font-semibold hover:scale-105 transition"
-                >
-                  Dashboard
-                </Link>
+              <div className="relative group">
 
-                <button
-                  onClick={handleLogout}
-                  className="text-white border border-red-500 px-5 py-2 rounded-full hover:bg-red-500 transition"
-                >
-                  Logout
-                </button>
-              </>
+                {/* Profile Icon */}
+                <div className="w-10 h-10 bg-yellow-400 text-black font-bold flex items-center justify-center rounded-full cursor-pointer">
+                  {userInitial}
+                </div>
+
+                {/* Dropdown */}
+                <div className="absolute right-0 mt-3 w-48 bg-black border border-white/10 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200">
+                  
+                  <Link
+                    to="/dashboard"
+                    className="block px-4 py-3 text-white hover:bg-white/10"
+                  >
+                    Dashboard
+                  </Link>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-3 text-red-400 hover:bg-white/10"
+                  >
+                    Logout
+                  </button>
+
+                </div>
+              </div>
             )}
           </div>
 
@@ -127,9 +144,11 @@ function Navbar() {
             </Link>
 
             <Link to="/products" onClick={() => setMenuOpen(false)} className="text-white text-lg">
-              Products
+              Products 
             </Link>
-
+            <Link to="/mobile" onClick={() => setMenuOpen(false)} className="text-white text-lg">
+              Mobile App
+            </Link>
             <Link to="/features" onClick={() => setMenuOpen(false)} className="text-white text-lg">
               Features
             </Link>
