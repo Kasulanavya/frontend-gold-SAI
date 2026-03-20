@@ -9,6 +9,8 @@ const AUGMONT_LOGIN_EMAIL =
 const AUGMONT_LOGIN_PASSWORD =
   import.meta.env.VITE_AUGMONT_LOGIN_PASSWORD?.trim() ||
   "Z1!pX6@S3#vK9a";
+const AUGMONT_PRODUCTS_TOKEN =
+  import.meta.env.VITE_AUGMONT_PRODUCTS_TOKEN?.trim() || "";
 const AUGMONT_SESSION_KEY = "augmontSession";
 const LIVE_GOLD_RATE_HISTORY_KEY = "liveGoldRateHistory";
 const LIVE_GOLD_RATE_HISTORY_LIMIT = 12;
@@ -301,6 +303,18 @@ export const loginAugmont = async ({ force = false } = {}) => {
       return {
         ok: true,
         ...existingSession
+      };
+    }
+
+    if (AUGMONT_PRODUCTS_TOKEN) {
+      const tokenSession = {
+        token: AUGMONT_PRODUCTS_TOKEN,
+        merchantId: DEFAULT_MERCHANT_ID
+      };
+      setAugmontSession(tokenSession);
+      return {
+        ok: true,
+        ...tokenSession
       };
     }
   }

@@ -86,6 +86,59 @@ const extractRateValue = (data, fallbackKeys = []) => {
   return 0;
 };
 
+const extractRateId = (data) => {
+  const payload = Array.isArray(data) ? data[0] : data;
+  const candidates = [
+    payload?.rateId,
+    payload?.data?.rateId,
+    payload?.payload?.rateId,
+    payload?.payload?.data?.rateId,
+    payload?.result?.rateId,
+    payload?.result?.data?.rateId
+  ];
+
+  for (const value of candidates) {
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value);
+    }
+  }
+
+  return "";
+};
+
+const extractVerifiedTrade = (data, fallback = {}) => {
+  const payload = Array.isArray(data) ? data[0] : data;
+  const result =
+    payload?.payload?.result?.data ||
+    payload?.payload?.result ||
+    payload?.result?.data ||
+    payload?.result ||
+    payload?.data ||
+    payload ||
+    {};
+
+  return {
+    grams: toNumber(
+      result?.goldAmount ??
+        result?.quantity ??
+        result?.metalQuantity ??
+        result?.grams ??
+        fallback.grams
+    ),
+    amount: toNumber(
+      result?.buyPrice ??
+        result?.sellPrice ??
+        result?.amount ??
+        result?.totalAmount ??
+        result?.payableAmount ??
+        result?.receivableAmount ??
+        fallback.amount
+    ),
+    rateId: String(result?.rateId || fallback.rateId || ""),
+    raw: result
+  };
+};
+
 export const isValidMediaUrl = (url) => {
   if (!url || typeof url !== "string") return false;
 
@@ -194,10 +247,12 @@ export const fetchSafeGoldBuyPrice = async () => {
 
     const data = await getJson(res);
     const price = extractRateValue(data, ["buyPrice"]);
+    const rateId = extractRateId(data);
 
     return {
       ok: res.ok && price > 0,
       price,
+      rateId,
       raw: data,
       message: res.ok ? "" : data?.message || data?.payload?.message || "Failed to fetch buy price"
     };
@@ -206,6 +261,7 @@ export const fetchSafeGoldBuyPrice = async () => {
     return {
       ok: false,
       price: 0,
+      rateId: "",
       message: "Failed to fetch buy price"
     };
   }
@@ -223,10 +279,12 @@ export const fetchSafeGoldSellPrice = async () => {
 
     const data = await getJson(res);
     const price = extractRateValue(data, ["sellPrice"]);
+    const rateId = extractRateId(data);
 
     return {
       ok: res.ok && price > 0,
       price,
+      rateId,
       raw: data,
       message: res.ok ? "" : data?.message || data?.payload?.message || "Failed to fetch sell price"
     };
@@ -235,6 +293,7 @@ export const fetchSafeGoldSellPrice = async () => {
     return {
       ok: false,
       price: 0,
+      rateId: "",
       message: "Failed to fetch sell price"
     };
   }
@@ -276,6 +335,8 @@ export const fetchSafeGoldLiveRateSnapshot = async () => {
         currentPrice,
         buyPrice: buyPrice || currentPrice,
         sellPrice: sellPrice || currentPrice,
+        buyRateId: buyResponse?.rateId || "",
+        sellRateId: sellResponse?.rateId || "",
         updatedAt: new Date().toISOString()
       },
       history
@@ -286,6 +347,104 @@ export const fetchSafeGoldLiveRateSnapshot = async () => {
       ok: false,
       message: "Failed to fetch live SafeGold price",
       history: readRateHistory()
+    };
+  }
+};
+
+export const verifySafeGoldBuy = async ({
+  partnerUserId,
+  rateId,
+  goldAmount,
+  buyPrice
+}) => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/gold/buy/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        partnerUserId: Number(partnerUserId),
+        request: {
+          rateId: Number(rateId),
+          goldAmount: Number(goldAmount),
+          buyPrice: Number(buyPrice)
+        }
+      })
+    });
+
+    const data = await getJson(res);
+    return {
+      ok: res.ok,
+      verified: extractVerifiedTrade(data, {
+        grams: goldAmount,
+        amount: buyPrice,
+        rateId
+      }),
+      raw: data,
+      message: res.ok
+        ? ""
+        : data?.message || data?.payload?.message || "Buy verification failed"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD BUY VERIFY ERROR:", error);
+    return {
+      ok: false,
+      verified: {
+        grams: 0,
+        amount: 0,
+        rateId: String(rateId || "")
+      },
+      message: "Buy verification failed"
+    };
+  }
+};
+
+export const verifySafeGoldSell = async ({
+  partnerUserId,
+  rateId,
+  goldAmount,
+  sellPrice
+}) => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/gold/sell/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        partnerUserId: Number(partnerUserId),
+        request: {
+          rateId: Number(rateId),
+          goldAmount: Number(goldAmount),
+          sellPrice: Number(sellPrice)
+        }
+      })
+    });
+
+    const data = await getJson(res);
+    return {
+      ok: res.ok,
+      verified: extractVerifiedTrade(data, {
+        grams: goldAmount,
+        amount: sellPrice,
+        rateId
+      }),
+      raw: data,
+      message: res.ok
+        ? ""
+        : data?.message || data?.payload?.message || "Sell verification failed"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD SELL VERIFY ERROR:", error);
+    return {
+      ok: false,
+      verified: {
+        grams: 0,
+        amount: 0,
+        rateId: String(rateId || "")
+      },
+      message: "Sell verification failed"
     };
   }
 };
