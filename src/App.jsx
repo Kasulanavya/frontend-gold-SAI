@@ -103,9 +103,12 @@ function App() {
 
         {/* DASHBOARD */}
         <Route path="/dashboard/*" element={<Dashboard />}>
-          <Route index element={<Portfolio />} />
           
         </Route>
+
+{/* SEPARATE PAGES */}
+<Route path="/portfolio" element={<Portfolio />} />
+<Route path="/products" element={<Products />} />
         <Route path="/mobile" element={<MobilePage />} />
         {/* 🔥 NEW PAGES */}
         <Route path="/features" element={<FeaturesPage />} />

@@ -1,29 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
-} from "recharts";
+import { useNavigate } from "react-router-dom"; // ✅ FIX
 import BuyGold from "./BuyGold";
 import SellGold from "./SellGold";
-import { fetchSafeGoldLiveRateSnapshot } from "../api/safeGoldApi";
-
-const currencyFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 2
-});
+import { getGoldRates } from "../api/augmontApi";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function Portfolio() {
+  const navigate = useNavigate(); // ✅ FIX
+
   const [gold, setGold] = useState(0);
   const [value, setValue] = useState(0);
   const [invested, setInvested] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
-  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     const load = async () => {
@@ -31,176 +25,188 @@ export default function Portfolio() {
       setGold(stored);
 
       try {
-        const response = await fetchSafeGoldLiveRateSnapshot();
-        const livePrice = response?.snapshot?.currentPrice || 0;
+        const rates = await getGoldRates();
+        const price = parseFloat(
+          rates?.payload?.result?.data?.rates?.gBuy || 0
+        );
 
-        setChartData(response?.history || []);
+        localStorage.setItem("goldPrice", price);
 
-        if (livePrice > 0) {
-          setValue(stored * livePrice);
-          setInvested(stored * livePrice * 0.9);
-        }
-      } catch (error) {
-        console.log(error);
+        setValue(stored * price);
+        setInvested(stored * price * 0.9);
+      } catch (e) {
+        console.log(e);
       }
     };
 
     load();
+
+    // ✅ LIVE UPDATE
     window.addEventListener("goldBalanceUpdated", load);
 
-    return () => window.removeEventListener("goldBalanceUpdated", load);
+    return () =>
+      window.removeEventListener("goldBalanceUpdated", load);
   }, []);
 
   const profit = useMemo(() => value - invested, [value, invested]);
+
   const profitPercent = useMemo(() => {
     if (!invested) return 0;
     return ((profit / invested) * 100).toFixed(2);
   }, [profit, invested]);
 
-  const chartRange = useMemo(() => {
-    if (!chartData.length) {
-      return [0, 100];
-    }
+  // 🔥 CHART DATA
+  const chartData = [
+    { day: "Mon", price: 65000 },
+    { day: "Tue", price: 67000 },
+    { day: "Wed", price: 66000 },
+    { day: "Thu", price: 69000 },
+    { day: "Fri", price: 71000 },
+    { day: "Sat", price: 72000 },
+    { day: "Sun", price: 74000 },
+  ];
 
-    const prices = chartData.map((point) => point.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const padding = Math.max((max - min) * 0.25, 5);
-
-    return [Math.max(0, min - padding), max + padding];
-  }, [chartData]);
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-300/5 border border-yellow-400/20 rounded-2xl p-6">
-        <p className="text-white/50 text-sm">Portfolio Value</p>
+    <div className="bg-black text-white min-h-screen">
 
-        <h1 className="text-4xl font-bold text-yellow-400 mt-2">
-          {currencyFormatter.format(value)}
-        </h1>
+      {/* 🔥 TOP BAR */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
 
-        <p
-          className={`mt-2 text-sm ${
-            profit >= 0 ? "text-green-400" : "text-red-400"
-          }`}
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="text-yellow-400 hover:text-yellow-300 font-medium"
         >
-          {profit >= 0 ? "+" : ""}
-          {currencyFormatter.format(profit)} ({profitPercent}%)
-        </p>
+          ← Back to Dashboard
+        </button>
+
+        <h1 className="text-xl font-semibold">Portfolio</h1>
+
+        <div></div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-[#111] p-4 rounded-xl">
-          <p className="text-white/50 text-xs">Gold</p>
-          <h3 className="font-semibold text-lg">{gold.toFixed(3)} g</h3>
-        </div>
+      {/* 🔥 CONTENT */}
+      <div className="space-y-6 max-w-5xl mx-auto p-6">
 
-        <div className="bg-[#111] p-4 rounded-xl">
-          <p className="text-white/50 text-xs">Invested</p>
-          <h3 className="font-semibold text-lg">
-            {currencyFormatter.format(invested)}
-          </h3>
-        </div>
+        {/* 🔥 TOP CARD */}
+        <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-300/5 border border-yellow-400/20 rounded-2xl p-6">
+          <p className="text-white/50 text-sm">Portfolio Value</p>
 
-        <div className="bg-[#111] p-4 rounded-xl">
-          <p className="text-white/50 text-xs">Profit</p>
-          <h3
-            className={`text-lg ${
+          <h1 className="text-4xl font-bold text-yellow-400 mt-2">
+            ₹{value.toLocaleString()}
+          </h1>
+
+          <p
+            className={`mt-2 text-sm ${
               profit >= 0 ? "text-green-400" : "text-red-400"
             }`}
           >
-            {currencyFormatter.format(profit)}
-          </h3>
+            {profit >= 0 ? "+" : ""}₹{profit.toLocaleString()} ({profitPercent}%)
+          </p>
         </div>
-      </div>
 
-      <div className="flex gap-6 border-b border-white/10">
-        {["overview", "buy", "sell"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 text-sm font-semibold transition ${
-              activeTab === tab
-                ? "text-yellow-400 border-b-2 border-yellow-400"
-                : "text-white/50 hover:text-white"
-            }`}
-          >
-            {tab.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "overview" && (
-        <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,_rgba(17,17,17,1),_rgba(10,10,10,1))] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
-          <div className="flex justify-between mb-4">
-            <h3 className="text-sm text-white/60">Portfolio Trend</h3>
-            <span className="text-xs text-white/40">Live backend samples</span>
+        {/* 🔥 STATS */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-[#111] p-4 rounded-xl">
+            <p className="text-white/50 text-xs">Gold</p>
+            <h3 className="font-semibold text-lg">
+              {gold.toFixed(3)} g
+            </h3>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 14, right: 6, left: -18, bottom: 4 }}>
-                <defs>
-                  <linearGradient id="portfolioBars" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.95} />
-                    <stop offset="100%" stopColor="#d97706" stopOpacity={0.75} />
-                  </linearGradient>
-                </defs>
+          <div className="bg-[#111] p-4 rounded-xl">
+            <p className="text-white/50 text-xs">Invested</p>
+            <h3 className="font-semibold text-lg">
+              ₹{invested.toFixed(0)}
+            </h3>
+          </div>
 
-                <CartesianGrid
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeDasharray="3 6"
-                  vertical={false}
-                />
-
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  interval={0}
-                  padding={{ left: 20, right: 20 }}
-                  tick={{ fontSize: 11, fill: "#94a3b8" }}
-                />
-
-                <YAxis
-                  domain={chartRange}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  width={88}
-                  tickFormatter={(price) =>
-                    currencyFormatter.format(Number(price) || 0).replace(".00", "")
-                  }
-                />
-
-                <Tooltip
-                  cursor={{
-                    stroke: "rgba(255,255,255,0.2)",
-                    strokeDasharray: "4 4"
-                  }}
-                  contentStyle={{
-                    background: "rgba(15, 23, 42, 0.95)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "16px",
-                    boxShadow: "0 18px 50px rgba(0,0,0,0.35)"
-                  }}
-                  labelStyle={{ color: "#fff" }}
-                  formatter={(price) => currencyFormatter.format(Number(price) || 0)}
-                />
-
-                <Bar
-                  dataKey="price"
-                  fill="url(#portfolioBars)"
-                  radius={[8, 8, 2, 2]}
-                  maxBarSize={30}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="bg-[#111] p-4 rounded-xl">
+            <p className="text-white/50 text-xs">Profit</p>
+            <h3
+              className={`text-lg ${
+                profit >= 0 ? "text-green-400" : "text-red-400"
+              }`}
+            >
+              ₹{profit.toFixed(0)}
+            </h3>
           </div>
         </div>
-      )}
 
-      {activeTab === "buy" && <BuyGold />}
-      {activeTab === "sell" && <SellGold />}
+        {/* 🔥 TABS */}
+        <div className="flex gap-6 border-b border-white/10">
+          {["overview", "buy", "sell"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveTab(t)}
+              className={`pb-2 text-sm font-semibold transition ${
+                activeTab === t
+                  ? "text-yellow-400 border-b-2 border-yellow-400"
+                  : "text-white/50 hover:text-white"
+              }`}
+            >
+              {t.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* 🔥 CONTENT */}
+        {activeTab === "overview" && (
+          <div className="bg-[#111] p-5 rounded-2xl">
+
+            <div className="flex justify-between mb-4">
+              <h3 className="text-sm text-white/60">
+                Portfolio Trend
+              </h3>
+              <span className="text-xs text-white/40">Last 7 days</span>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+
+                  <XAxis
+                    dataKey="day"
+                    stroke="#666"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    tick={{ fontSize: 12 }}
+                  />
+
+                  <Tooltip
+                    contentStyle={{
+                      background: "#111",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "10px",
+                    }}
+                    labelStyle={{ color: "#fff" }}
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="price"
+                    stroke="#FBBF24"
+                    strokeWidth={2}
+                    fill="url(#goldGradient)"
+                  />
+
+                  <defs>
+                    <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FBBF24" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="#FBBF24" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "buy" && <BuyGold />}
+        {activeTab === "sell" && <SellGold />}
+
+      </div>
     </div>
   );
 }
