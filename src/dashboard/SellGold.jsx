@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { getGoldRates } from "../api/augmontApi";
 import toast from "react-hot-toast";
+import { fetchSafeGoldLiveRateSnapshot } from "../api/safeGoldApi";
+
+const currencyFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2
+});
 
 export default function SellGold() {
   const [goldOwned, setGoldOwned] = useState(0);
@@ -15,12 +21,11 @@ export default function SellGold() {
 
     const loadRates = async () => {
       try {
-        const data = await getGoldRates();
-        const price = parseFloat(data?.payload?.result?.data?.rates?.gBuy || 0);
+        const response = await fetchSafeGoldLiveRateSnapshot();
+        const price = response?.snapshot?.sellPrice || 0;
 
         if (price > 0) {
           setGoldPrice(price);
-          localStorage.setItem("goldPrice", price);
         }
       } catch (error) {
         console.error(error);
@@ -31,7 +36,7 @@ export default function SellGold() {
   }, []);
 
   const payout = useMemo(() => {
-    return (grams * goldPrice).toFixed(2);
+    return Number((grams * goldPrice).toFixed(2));
   }, [grams, goldPrice]);
 
   const handleSell = () => {
@@ -52,14 +57,13 @@ export default function SellGold() {
 
     window.dispatchEvent(new Event("goldBalanceUpdated"));
 
-    toast.success(`Sold ${grams}g gold for ₹${payout}`);
+    toast.success(`Sold ${grams}g gold for ${currencyFormatter.format(payout)}`);
   };
 
   return (
     <div className="bg-[#111] p-6 rounded-2xl space-y-6">
       <h3 className="text-xl font-semibold">Sell Gold</h3>
 
-      {/* 🔥 QUICK GRAMS */}
       <div className="flex gap-3 flex-wrap">
         {quickGrams.map((g) => (
           <button
@@ -72,7 +76,6 @@ export default function SellGold() {
         ))}
       </div>
 
-      {/* INPUT */}
       <input
         type="number"
         value={grams}
@@ -80,12 +83,10 @@ export default function SellGold() {
         className="w-full p-3 bg-black border border-white/10 rounded-lg"
       />
 
-      {/* PAYOUT */}
       <div className="text-yellow-400 text-lg font-semibold">
-        ₹{payout}
+        {currencyFormatter.format(payout)}
       </div>
 
-      {/* BUTTON */}
       <button
         onClick={handleSell}
         className="w-full bg-yellow-500 text-black py-3 rounded-xl hover:scale-105 transition"

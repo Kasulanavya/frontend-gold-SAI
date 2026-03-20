@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ProductCard from "../components/ProductCard";
 import SafeGoldProductCard from "../components/SafeGoldProductCard";
-import { fetchAugmontProducts } from "../api/augmontApi";
+import { fetchAugmontProducts, loginAugmont } from "../api/augmontApi";
 import { fetchSafeGoldProducts } from "../api/safeGoldApi";
 
 const initialPagination = {
@@ -35,6 +35,7 @@ export default function Products() {
 
   const [augmontProducts, setAugmontProducts] = useState([]);
   const [augmontPagination, setAugmontPagination] = useState(initialPagination);
+  const [augmontSession, setAugmontSession] = useState(null);
   const [augmontLoading, setAugmontLoading] = useState(true);
   const [augmontLoadingMore, setAugmontLoadingMore] = useState(false);
   const [augmontError, setAugmontError] = useState("");
@@ -53,7 +54,35 @@ export default function Products() {
       setAugmontErrorMeta("");
     }
 
-    const response = await fetchAugmontProducts(page, 10);
+    let session = augmontSession;
+
+    if (!session?.token || !session?.merchantId || !append) {
+      const loginResponse = await loginAugmont({
+        force: !append
+      });
+
+      if (!loginResponse?.ok) {
+        setAugmontError(
+          loginResponse?.message || "Failed to log in to Augmont"
+        );
+        setAugmontLoading(false);
+        setAugmontLoadingMore(false);
+        return;
+      }
+
+      session = {
+        token: loginResponse.token,
+        merchantId: loginResponse.merchantId
+      };
+      setAugmontSession(session);
+    }
+
+    const response = await fetchAugmontProducts(
+      page,
+      10,
+      session.token,
+      session.merchantId
+    );
 
     if (!response?.ok) {
       setAugmontError(response?.message || "Failed to fetch Augmont products");

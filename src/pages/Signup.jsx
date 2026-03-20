@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Smartphone, KeyRound, Mail } from "lucide-react";
 import toast from "react-hot-toast";
-import { sendOtp, verifyOtp } from "../api/authApi";
+import { sendOtp, setUserProfile, verifyOtp } from "../api/authApi";
 import { createUser } from "../api/augmontApi";
 
 export default function Signup() {
@@ -59,11 +59,32 @@ export default function Signup() {
       return;
     }
 
+    setUserProfile({
+      fullName,
+      email,
+      mobileNumber
+    });
+
     const createUserResponse = await createUser({
       name: fullName,
       email,
       mobileNumber
     });
+
+    const createdUniqueId =
+      createUserResponse?.payload?.result?.data?.uniqueId ||
+      createUserResponse?.payload?.result?.uniqueId ||
+      createUserResponse?.uniqueId ||
+      "";
+
+    if (createdUniqueId) {
+      setUserProfile({
+        fullName,
+        email,
+        mobileNumber,
+        uniqueId: createdUniqueId
+      });
+    }
 
     setLoading(false);
 

@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { clearAuthSession, isAuthenticated } from "../api/authApi";
+import {
+  clearAuthSession,
+  getUserProfile,
+  isAuthenticated
+} from "../api/authApi";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -10,8 +14,10 @@ function Navbar() {
   const navigate = useNavigate();
 
   const loggedIn = isAuthenticated();
-
-  const userInitial = "R"; // later make dynamic
+  const userProfile = getUserProfile();
+  const displayName = userProfile?.fullName || "User";
+  const displayEmail = userProfile?.email || "No email available";
+  const userInitial = displayName.charAt(0).toUpperCase() || "U";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -134,8 +140,8 @@ function Navbar() {
 
                       {/* USER INFO */}
                       <div className="px-4 py-3 border-b border-white/10">
-                        <p className="text-white font-semibold">Rahul</p>
-                        <p className="text-white/60 text-sm">rahul@email.com</p>
+                        <p className="text-white font-semibold">{displayName}</p>
+                        <p className="text-white/60 text-sm">{displayEmail}</p>
                       </div>
 
                       {/* OPTIONS */}

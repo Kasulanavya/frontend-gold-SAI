@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, User, Smartphone, KeyRound } from "lucide-react";
 import toast from "react-hot-toast";
-import { sendOtp, verifyOtp } from "../api/authApi";
+import { sendOtp, setUserProfile, verifyOtp } from "../api/authApi";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -55,6 +55,11 @@ export default function Login() {
       toast.error(response?.message || "OTP verification failed");
       return;
     }
+
+    setUserProfile({
+      email,
+      mobileNumber
+    });
 
     toast.success("Login successful");
     navigate("/dashboard");

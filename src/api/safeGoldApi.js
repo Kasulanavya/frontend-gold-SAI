@@ -1,6 +1,8 @@
 const BASE_URL =
   import.meta.env.VITE_AUGMONT_BASE_URL?.trim() ||
   "https://uatbckend.karatly.net";
+const SAFEGOLD_RATE_HISTORY_KEY = "safeGoldRateHistory";
+const SAFEGOLD_RATE_HISTORY_LIMIT = 12;
 
 const getJson = async (res) => {
   const text = await res.text();
@@ -13,6 +15,75 @@ const getJson = async (res) => {
       message: text || "Invalid server response"
     };
   }
+};
+
+const toNumber = (value) => {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const readRateHistory = () => {
+  try {
+    const raw = localStorage.getItem(SAFEGOLD_RATE_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const storeRatePoint = (price) => {
+  const timestamp = new Date();
+  const nextPoint = {
+    label: timestamp.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit"
+    }),
+    price: Number(price.toFixed(2)),
+    updatedAt: timestamp.toISOString()
+  };
+
+  const history = readRateHistory();
+  const nextHistory = [...history, nextPoint].slice(-SAFEGOLD_RATE_HISTORY_LIMIT);
+  localStorage.setItem(SAFEGOLD_RATE_HISTORY_KEY, JSON.stringify(nextHistory));
+  return nextHistory;
+};
+
+const extractRateValue = (data, fallbackKeys = []) => {
+  const payload = Array.isArray(data) ? data[0] : data;
+  const candidates = [
+    payload?.sellPrice,
+    payload?.buyPrice,
+    payload?.price,
+    payload?.rate,
+    payload?.currentPrice,
+    payload?.goldSellPrice,
+    payload?.goldBuyPrice,
+    payload?.data?.sellPrice,
+    payload?.data?.buyPrice,
+    payload?.data?.price,
+    payload?.payload?.sellPrice,
+    payload?.payload?.buyPrice,
+    payload?.payload?.price,
+    payload?.payload?.data?.sellPrice,
+    payload?.payload?.data?.buyPrice,
+    payload?.payload?.data?.price,
+    payload?.result?.sellPrice,
+    payload?.result?.buyPrice,
+    payload?.result?.price,
+    payload?.result?.data?.sellPrice,
+    payload?.result?.data?.buyPrice,
+    payload?.result?.data?.price,
+    ...fallbackKeys.map((key) => payload?.[key])
+  ];
+
+  for (const value of candidates) {
+    const parsed = toNumber(value);
+    if (parsed > 0) return parsed;
+  }
+
+  return 0;
 };
 
 export const isValidMediaUrl = (url) => {
@@ -107,6 +178,114 @@ export const fetchSafeGoldProducts = async () => {
       ok: false,
       message: "Failed to fetch SafeGold products",
       products: []
+    };
+  }
+};
+
+export const fetchSafeGoldBuyPrice = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/gold/buy-price`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await getJson(res);
+    const price = extractRateValue(data, ["buyPrice"]);
+
+    return {
+      ok: res.ok && price > 0,
+      price,
+      raw: data,
+      message: res.ok ? "" : data?.message || data?.payload?.message || "Failed to fetch buy price"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD BUY PRICE API ERROR:", error);
+    return {
+      ok: false,
+      price: 0,
+      message: "Failed to fetch buy price"
+    };
+  }
+};
+
+export const fetchSafeGoldSellPrice = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/gold/sell-price`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await getJson(res);
+    const price = extractRateValue(data, ["sellPrice"]);
+
+    return {
+      ok: res.ok && price > 0,
+      price,
+      raw: data,
+      message: res.ok ? "" : data?.message || data?.payload?.message || "Failed to fetch sell price"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD SELL PRICE API ERROR:", error);
+    return {
+      ok: false,
+      price: 0,
+      message: "Failed to fetch sell price"
+    };
+  }
+};
+
+export const fetchSafeGoldLiveRateSnapshot = async () => {
+  try {
+    const [buyResponse, sellResponse] = await Promise.all([
+      fetchSafeGoldBuyPrice(),
+      fetchSafeGoldSellPrice()
+    ]);
+
+    const buyPrice = buyResponse?.price || 0;
+    const sellPrice = sellResponse?.price || 0;
+    const currentPrice = sellPrice || buyPrice;
+
+    if (currentPrice <= 0) {
+      return {
+        ok: false,
+        message:
+          sellResponse?.message ||
+          buyResponse?.message ||
+          "Live SafeGold price is unavailable",
+        snapshot: {
+          currentPrice: 0,
+          buyPrice: 0,
+          sellPrice: 0
+        },
+        history: readRateHistory()
+      };
+    }
+
+    const history = storeRatePoint(currentPrice);
+    localStorage.setItem("goldPrice", String(currentPrice));
+
+    return {
+      ok: true,
+      snapshot: {
+        currentPrice,
+        buyPrice: buyPrice || currentPrice,
+        sellPrice: sellPrice || currentPrice,
+        updatedAt: new Date().toISOString()
+      },
+      history
+    };
+  } catch (error) {
+    console.error("SAFEGOLD LIVE RATE ERROR:", error);
+    return {
+      ok: false,
+      message: "Failed to fetch live SafeGold price",
+      history: readRateHistory()
     };
   }
 };
