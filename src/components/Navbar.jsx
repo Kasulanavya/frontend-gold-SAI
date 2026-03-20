@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { clearAuthSession, isAuthenticated } from "../api/authApi";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -8,7 +9,7 @@ function Navbar() {
 
   const navigate = useNavigate();
 
-  const isLoggedIn = localStorage.getItem("isLoggedIn");
+  const loggedIn = isAuthenticated();
 
   const userInitial = "R"; // later make dynamic
 
@@ -30,7 +31,7 @@ function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
+    clearAuthSession();
     navigate("/");
     window.location.reload();
   };
@@ -89,7 +90,7 @@ function Navbar() {
             </Link>
 
             {/* AUTH */}
-            {!isLoggedIn ? (
+            {!loggedIn ? (
               <>
                 <Link
                   to="/login"
@@ -236,7 +237,7 @@ function Navbar() {
               FAQ
             </Link>
 
-            {!isLoggedIn ? (
+            {!loggedIn ? (
               <>
                 <Link to="/login" className="text-white border border-yellow-400 px-6 py-2 rounded-full">
                   Login

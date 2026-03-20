@@ -1,220 +1,222 @@
-import { motion } from "framer-motion";
-import { Coins } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import ProductCard from "../components/ProductCard";
+import SafeGoldProductCard from "../components/SafeGoldProductCard";
+import { fetchAugmontProducts } from "../api/augmontApi";
+import { fetchSafeGoldProducts } from "../api/safeGoldApi";
 
-/* ---------------- DATA ---------------- */
+const initialPagination = {
+  hasMore: false,
+  count: 0,
+  per_page: 10,
+  current_page: 1
+};
 
-const products = Array.from({ length: 15 }, (_, i) => ({
-  id: i + 1,
-  name: `Digital Gold Plan ${i + 1}`,
-  price: "Live Price"
-}));
-
-/* ---------------- COMPONENT ---------------- */
-
-export default function Products() {
-
-  const navigate = useNavigate();
-
-  const handleInvestClick = () => {
-
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-
-    if (isLoggedIn === "true") {
-      navigate("/dashboard?tab=buy");
-    } else {
-      navigate("/login");
-    }
-
-  };
-
+function ErrorBanner({ message, meta, onRetry }) {
   return (
-
-    <div className="bg-black text-white">
-
-      <Navbar />
-
-      <main className="pt-20">
-
-        <section className="py-28 px-6 lg:px-20 relative overflow-hidden">
-
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-yellow-500 opacity-10 blur-[200px] rounded-full"></div>
-
-          <div className="max-w-7xl mx-auto relative z-10">
-
-            <p className="text-center text-yellow-400 tracking-widest font-semibold mb-4">
-              OUR PRODUCTS
-            </p>
-
-            <h2 className="text-center text-4xl lg:text-5xl font-bold mb-4">
-              Explore Our <span className="text-yellow-400">Gold Products</span>
-            </h2>
-
-            <p className="text-center text-gray-400 mb-16">
-              Secure and flexible digital gold investment options
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-
-              {products.map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.04 }}
-                  viewport={{ once: true }}
-                  className="bg-gradient-to-b from-[#141414] to-[#0b0b0b] border border-gray-800 rounded-3xl p-10 hover:border-yellow-500/40 transition duration-300 text-center"
-                >
-
-                  <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-yellow-500 text-black mx-auto mb-6 shadow-[0_0_30px_rgba(255,200,0,0.5)]">
-                    <Coins size={28} />
-                  </div>
-
-                  <h3 className="text-lg font-semibold mb-2">
-                    {product.name}
-                  </h3>
-
-                  <p className="text-yellow-400 font-semibold mb-6">
-                    {product.price}
-                  </p>
-
-                  <button
-                    onClick={handleInvestClick}
-                    className="w-full bg-yellow-500 text-black py-2 rounded-xl font-semibold hover:bg-yellow-400 transition"
-                  >
-                    Invest Now
-                  </button>
-
-                </motion.div>
-              ))}
-
-            </div>
-
-          </div>
-        </section>
-
-        <section className="py-28 px-6 text-center">
-
-          <h2 className="text-4xl font-bold mb-6">
-            Start Investing in <span className="text-yellow-400">Gold Today</span>
-          </h2>
-
-          <p className="text-gray-400 mb-8">
-            Secure your wealth with trusted digital gold investments
-          </p>
-
-          <button
-            onClick={handleInvestClick}
-            className="bg-yellow-500 text-black px-8 py-3 rounded-xl font-semibold hover:bg-yellow-400 transition"
-          >
-            Start Investing
-          </button>
-
-        </section>
-
-      </main>
-
-      <Footer />
-
+    <div className="mx-auto max-w-xl rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center">
+      <p className="text-red-300">{message}</p>
+      {meta && <p className="mt-2 text-xs text-white/60">Provider: {meta}</p>}
+      <button
+        onClick={onRetry}
+        className="mt-4 rounded-xl bg-yellow-500 px-6 py-2 text-black"
+      >
+        Retry
+      </button>
     </div>
   );
 }
 
-//Backend code integration code 
-// import { motion } from "framer-motion";
-// import { Coins } from "lucide-react";
-// import { useNavigate } from "react-router-dom";
-// import { useEffect, useState } from "react";
+export default function Products() {
+  const navigate = useNavigate();
 
-// import Navbar from "../components/Navbar";
-// import Footer from "../components/Footer";
+  const [augmontProducts, setAugmontProducts] = useState([]);
+  const [augmontPagination, setAugmontPagination] = useState(initialPagination);
+  const [augmontLoading, setAugmontLoading] = useState(true);
+  const [augmontLoadingMore, setAugmontLoadingMore] = useState(false);
+  const [augmontError, setAugmontError] = useState("");
+  const [augmontErrorMeta, setAugmontErrorMeta] = useState("");
 
-// export default function Products() {
+  const [safeGoldProducts, setSafeGoldProducts] = useState([]);
+  const [safeGoldLoading, setSafeGoldLoading] = useState(true);
+  const [safeGoldError, setSafeGoldError] = useState("");
 
-//   const navigate = useNavigate();
+  const loadAugmontProducts = async ({ page = 1, append = false } = {}) => {
+    if (append) {
+      setAugmontLoadingMore(true);
+    } else {
+      setAugmontLoading(true);
+      setAugmontError("");
+      setAugmontErrorMeta("");
+    }
 
-//   const [products,setProducts] = useState([]);
+    const response = await fetchAugmontProducts(page, 10);
 
-//   useEffect(()=>{
+    if (!response?.ok) {
+      setAugmontError(response?.message || "Failed to fetch Augmont products");
+      setAugmontErrorMeta(response?.providerUrl || "");
+      if (!append) {
+        setAugmontProducts([]);
+      }
+      setAugmontLoading(false);
+      setAugmontLoadingMore(false);
+      return;
+    }
 
-//     fetch("http://localhost:8080/api/products")
-//       .then(res=>res.json())
-//       .then(data=>setProducts(data))
-//       .catch(err=>console.log(err));
+    setAugmontProducts((current) =>
+      append ? [...current, ...response.products] : response.products
+    );
+    setAugmontPagination(response.pagination);
+    setAugmontLoading(false);
+    setAugmontLoadingMore(false);
+  };
 
-//   },[]);
+  const loadSafeGoldProducts = async () => {
+    setSafeGoldLoading(true);
+    setSafeGoldError("");
 
-//   const handleInvestClick = () => {
+    const response = await fetchSafeGoldProducts();
 
-//     const isLoggedIn = localStorage.getItem("isLoggedIn");
+    if (!response?.ok) {
+      setSafeGoldError(response?.message || "Failed to fetch SafeGold products");
+      setSafeGoldProducts([]);
+      setSafeGoldLoading(false);
+      return;
+    }
 
-//     if (isLoggedIn === "true") {
-//       navigate("/dashboard?tab=buy");
-//     } else {
-//       navigate("/login");
-//     }
+    setSafeGoldProducts(response.products);
+    setSafeGoldLoading(false);
+  };
 
-//   };
+  useEffect(() => {
+    loadAugmontProducts();
+    loadSafeGoldProducts();
+  }, []);
 
-//   return (
+  const handleProductClick = (sku) => {
+    if (!sku) return;
+    navigate(`/products?sku=${encodeURIComponent(sku)}`);
+  };
 
-//     <div className="bg-black text-white">
+  const unifiedProducts = [
+    ...augmontProducts.map((product) => ({
+      source: "augmont",
+      id: product?.sku || product?.id,
+      product
+    })),
+    ...safeGoldProducts.map((product) => ({
+      source: "safegold",
+      id: product?.skuNumber || product?.id,
+      product
+    }))
+  ];
 
-//       <Navbar/>
+  const initialLoading = augmontLoading || safeGoldLoading;
+  const isEmpty =
+    !initialLoading &&
+    unifiedProducts.length === 0 &&
+    !augmontError &&
+    !safeGoldError;
 
-//       <main className="pt-20">
+  return (
+    <div className="bg-black text-white">
+      <Navbar />
 
-//         <section className="py-28 px-6 lg:px-20">
+      <main className="pt-20">
+        <section className="px-6 py-28 lg:px-20">
+          <div className="mx-auto max-w-7xl">
+            <h2 className="mb-4 text-center text-4xl font-bold">
+              Gold Products
+            </h2>
 
-//           <div className="max-w-7xl mx-auto">
+            <p className="mx-auto mb-10 max-w-2xl text-center text-white/60">
+              Explore our live gold product catalog in one unified product feed.
+            </p>
 
-//             <h2 className="text-center text-4xl font-bold mb-12">
-//               Gold Products
-//             </h2>
+            {(augmontLoading || safeGoldLoading) && unifiedProducts.length === 0 && (
+              <div className="rounded-2xl border border-white/10 bg-[#111] p-8 text-center text-gray-400">
+                Loading products...
+              </div>
+            )}
 
-//             <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-8">
+            {!initialLoading && augmontError && (
+              <div className="mb-6">
+                <ErrorBanner
+                  message={augmontError}
+                  meta={augmontErrorMeta}
+                  onRetry={() => loadAugmontProducts({ page: 1, append: false })}
+                />
+              </div>
+            )}
 
-//               {products.map((product)=>(
-                
-//                 <div
-//                   key={product.id}
-//                   className="bg-[#111] border border-white/10 rounded-2xl p-8 text-center"
-//                 >
+            {!initialLoading && safeGoldError && (
+              <div className="mb-6">
+                <ErrorBanner
+                  message={safeGoldError}
+                  onRetry={loadSafeGoldProducts}
+                />
+              </div>
+            )}
 
-//                   <Coins className="text-yellow-400 mx-auto mb-4"/>
+            {!initialLoading && unifiedProducts.length > 0 && (
+              <>
+                <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#111] p-4 text-sm text-gray-300 sm:flex-row sm:items-center sm:justify-between">
+                  <p>Showing {unifiedProducts.length} products</p>
+                  <p>
+                    Augmont: {augmontProducts.length} • SafeGold: {safeGoldProducts.length}
+                  </p>
+                </div>
 
-//                   <h3 className="text-lg font-semibold">
-//                     {product.name}
-//                   </h3>
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+                  {unifiedProducts.map((item) =>
+                    item.source === "augmont" ? (
+                      <ProductCard
+                        key={`augmont-${item.id}`}
+                        product={item.product}
+                        onClick={handleProductClick}
+                      />
+                    ) : (
+                      <SafeGoldProductCard
+                        key={`safegold-${item.id}`}
+                        product={item.product}
+                        onClick={handleProductClick}
+                      />
+                    )
+                  )}
+                </div>
 
-//                   <p className="text-yellow-400 mb-4">
-//                     ₹{product.price}
-//                   </p>
+                {augmontPagination?.hasMore && (
+                  <div className="mt-10 flex justify-center">
+                    <button
+                      onClick={() =>
+                        loadAugmontProducts({
+                          page: (augmontPagination?.current_page || 1) + 1,
+                          append: true
+                        })
+                      }
+                      disabled={augmontLoadingMore}
+                      className="rounded-xl bg-yellow-500 px-6 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {augmontLoadingMore ? "Loading more..." : "Load More Products"}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
 
-//                   <button
-//                     onClick={handleInvestClick}
-//                     className="bg-yellow-400 text-black px-6 py-2 rounded-xl"
-//                   >
-//                     Invest Now
-//                   </button>
+            {isEmpty && (
+              <div className="rounded-2xl border border-white/10 bg-[#111] p-8 text-center text-gray-400">
+                No products found.
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
 
-//                 </div>
-
-//               ))}
-
-//             </div>
-
-//           </div>
-
-//         </section>
-
-//       </main>
-
-//       <Footer/>
-
-//     </div>
-//   );
-// }
+      <Footer />
+    </div>
+  );
+}

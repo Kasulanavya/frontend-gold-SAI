@@ -1,14 +1,27 @@
 import { useEffect } from "react";
-import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import DashboardNavbar from "../components/DashboardNavbar";
+import { clearAuthSession, isAuthenticated, validateToken } from "../api/authApi";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
-    const logged = localStorage.getItem("isLoggedIn");
-    if (!logged) navigate("/login");
+    const verifySession = async () => {
+      if (!isAuthenticated()) {
+        navigate("/login");
+        return;
+      }
+
+      const result = await validateToken();
+
+      if (!result?.ok) {
+        clearAuthSession();
+        navigate("/login");
+      }
+    };
+
+    verifySession();
   }, [navigate]);
 
   return (

@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { clearAuthSession } from "../api/authApi";
 
 function DashboardNavbar() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ function DashboardNavbar() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
+    clearAuthSession();
     navigate("/login");
   };
 
