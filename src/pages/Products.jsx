@@ -32,6 +32,7 @@ function ErrorBanner({ message, meta, onRetry }) {
 
 export default function Products() {
   const navigate = useNavigate();
+  const PRODUCT_SELECTION_KEY = "selectedGoldProduct";
 
   const [augmontProducts, setAugmontProducts] = useState([]);
   const [augmontPagination, setAugmontPagination] = useState(initialPagination);
@@ -130,6 +131,37 @@ export default function Products() {
     navigate(`/products?sku=${encodeURIComponent(sku)}`);
   };
 
+  const handleBuyProduct = (source, product) => {
+    if (!product) return;
+
+    const selectedProduct = {
+      source,
+      id:
+        source === "augmont"
+          ? product?.sku || product?.id || ""
+          : product?.skuNumber || product?.id || "",
+      name: product?.name || product?.title || "Gold Product",
+      price: Number(product?.basePrice ?? product?.price ?? 0),
+      image: product?.imageUrl || product?.image || "",
+      sku: product?.sku || product?.skuNumber || "",
+      description: product?.description || "",
+      metal: product?.metalType || product?.metal || "",
+      purity: product?.purity || "",
+      weight: product?.productWeight ?? product?.weight ?? null,
+      brand: product?.brand || "",
+      dispatchTime: product?.dispatchTime || "",
+      certification: product?.certification || "",
+      raw: product
+    };
+
+    localStorage.setItem(PRODUCT_SELECTION_KEY, JSON.stringify(selectedProduct));
+    navigate("/portfolio?tab=buy", {
+      state: {
+        selectedProduct
+      }
+    });
+  };
+
   const unifiedProducts = [
     ...augmontProducts.map((product) => ({
       source: "augmont",
@@ -206,12 +238,14 @@ export default function Products() {
                         key={`augmont-${item.id}`}
                         product={item.product}
                         onClick={handleProductClick}
+                        onBuy={(product) => handleBuyProduct("augmont", product)}
                       />
                     ) : (
                       <SafeGoldProductCard
                         key={`safegold-${item.id}`}
                         product={item.product}
                         onClick={handleProductClick}
+                        onBuy={(product) => handleBuyProduct("safegold", product)}
                       />
                     )
                   )}
