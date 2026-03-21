@@ -106,6 +106,19 @@ const extractRateId = (data) => {
   return "";
 };
 
+const extractFirstDefined = (data, paths = []) => {
+  const payload = Array.isArray(data) ? data[0] : data;
+
+  for (const path of paths) {
+    const value = path(payload);
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
 const extractVerifiedTrade = (data, fallback = {}) => {
   const payload = Array.isArray(data) ? data[0] : data;
   const result =
@@ -248,11 +261,36 @@ export const fetchSafeGoldBuyPrice = async () => {
     const data = await getJson(res);
     const price = extractRateValue(data, ["buyPrice"]);
     const rateId = extractRateId(data);
+    const applicableTax = toNumber(
+      extractFirstDefined(data, [
+        (payload) => payload?.applicableTax,
+        (payload) => payload?.data?.applicableTax,
+        (payload) => payload?.payload?.applicableTax,
+        (payload) => payload?.payload?.data?.applicableTax,
+        (payload) => payload?.result?.applicableTax,
+        (payload) => payload?.result?.data?.applicableTax
+      ])
+    );
+    const finalPrice = extractRateValue(data, ["finalPrice", "finalGstPrice"]);
+    const rateValidity =
+      extractFirstDefined(data, [
+        (payload) => payload?.rateValidity,
+        (payload) => payload?.data?.rateValidity,
+        (payload) => payload?.payload?.rateValidity,
+        (payload) => payload?.payload?.data?.rateValidity,
+        (payload) => payload?.result?.rateValidity,
+        (payload) => payload?.result?.data?.rateValidity
+      ]) || "";
 
     return {
       ok: res.ok && price > 0,
       price,
+      pricePerGram: price,
+      applicableTax,
+      finalPrice,
+      finalGstPrice: finalPrice,
       rateId,
+      rateValidity,
       raw: data,
       message: res.ok ? "" : data?.message || data?.payload?.message || "Failed to fetch buy price"
     };
@@ -261,7 +299,12 @@ export const fetchSafeGoldBuyPrice = async () => {
     return {
       ok: false,
       price: 0,
+      pricePerGram: 0,
+      applicableTax: 0,
+      finalPrice: 0,
+      finalGstPrice: 0,
       rateId: "",
+      rateValidity: "",
       message: "Failed to fetch buy price"
     };
   }

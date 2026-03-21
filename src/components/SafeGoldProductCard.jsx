@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Coins, PackageCheck } from "lucide-react";
-import { motion } from "framer-motion";
 
 const formatPrice = (price) =>
   Number(price || 0).toLocaleString("en-IN", {
@@ -8,14 +7,13 @@ const formatPrice = (price) =>
     maximumFractionDigits: 2
   });
 
-function SafeGoldProductCard({ product, onClick }) {
+function SafeGoldProductCard({ product, onClick, onBuy }) {
   const [isExpanded, setIsExpanded] = useState(false);
   return (
-    <motion.button
+    <button
       type="button"
-      whileHover={{ y: -6 }}
       onClick={() => onClick(product?.skuNumber)}
-      className="overflow-hidden rounded-2xl border border-gray-800 bg-[#111] text-left"
+      className="overflow-hidden rounded-2xl border border-gray-800 bg-[#111] text-left transition hover:-translate-y-1.5"
     >
       {product?.image ? (
         <img
@@ -98,18 +96,31 @@ function SafeGoldProductCard({ product, onClick }) {
           </>
         )}
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="mt-4 flex items-center justify-end gap-3 text-sm text-gray-400 w-full hover:text-yellow-400 transition"
-        >
-          <span>{isExpanded ? "Show Less" : "View Details"}</span>
-        </button>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBuy?.(product);
+            }}
+            className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-105"
+          >
+            Buy Now
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="flex w-full items-center justify-end gap-3 text-sm text-gray-400 transition hover:text-yellow-400"
+          >
+            <span>{isExpanded ? "Show Less" : "View Details"}</span>
+          </button>
+        </div>
       </div>
-    </motion.button>
+    </button>
   );
 }
 
