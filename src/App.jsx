@@ -48,6 +48,7 @@ import Disclaimer from "./pages/Disclaimer";
 
 // OTHER
 import Products from "./pages/Products";
+import GoldPlatformPage from "./pages/GoldPlatformPage";
 
 function HomePage() {
   return (
@@ -100,6 +101,7 @@ function App() {
 <Route path="/orders" element={<OrdersPage />} />
 <Route path="/settings" element={<SettingsPage />} />
 <Route path="/help" element={<HelpPage />} />
+<Route path="/gold-platform" element={<GoldPlatformPage />} />
 
         {/* DASHBOARD */}
         <Route path="/dashboard/*" element={<Dashboard />}>

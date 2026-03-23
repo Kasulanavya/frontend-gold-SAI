@@ -117,7 +117,7 @@ export default function SellGold() {
 
     const estimatedAmount = Number((parsedNextGrams * goldPrice).toFixed(2));
 
-    if (!partnerUserId || !rateId) {
+    if (!partnerUserId) {
       setGrams(String(parsedNextGrams));
       setAmount(estimatedAmount.toFixed(2));
       return;
@@ -126,7 +126,6 @@ export default function SellGold() {
     setIsVerifying(true);
     const response = await verifySafeGoldSell({
       partnerUserId,
-      rateId,
       goldAmount: parsedNextGrams,
       sellPrice: estimatedAmount
     });
@@ -143,7 +142,7 @@ export default function SellGold() {
 
     setGrams(String(Number(response?.verified?.grams || parsedNextGrams).toFixed(4)));
     setAmount(String(Number(response?.verified?.amount || estimatedAmount).toFixed(2)));
-  }, [goldPrice, partnerUserId, rateId]);
+  }, [goldPrice, partnerUserId]);
 
   const handleGramInputChange = (value) => {
     setGrams(value);
