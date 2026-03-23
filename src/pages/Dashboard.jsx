@@ -89,12 +89,20 @@ export default function Dashboard() {
           <div className="mb-4 flex justify-between">
             <h2 className="text-xl font-semibold">Shop Gold</h2>
 
-            <button
-              onClick={() => navigate("/products")}
-              className="text-yellow-400"
-            >
-              View All
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => navigate("/gold-platform")}
+                className="text-white/60 transition hover:text-yellow-300"
+              >
+                Goldplatform
+              </button>
+              <button
+                onClick={() => navigate("/products")}
+                className="text-yellow-400"
+              >
+                View All
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-4">

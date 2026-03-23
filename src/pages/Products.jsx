@@ -42,9 +42,6 @@ const getDefaultQuantity = (product) => {
   return weight.toFixed(4);
 };
 
-const buildMerchantTransactionId = () =>
-  `AUGBUY-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
 function ErrorBanner({ message, meta, onRetry }) {
   return (
     <div className="mx-auto max-w-xl rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center">
@@ -77,11 +74,8 @@ export default function Products() {
 
   const [selectedAugmontProduct, setSelectedAugmontProduct] = useState(null);
   const [augmontBuyForm, setAugmontBuyForm] = useState({
-    lockPrice: "",
     quantity: "0.1000",
-    modeOfPayment: "UPI",
-    blockId: "",
-    merchantTransactionId: ""
+    modeOfPayment: "UPI"
   });
   const [resolvedAugmontUniqueId, setResolvedAugmontUniqueId] = useState("");
   const [createdAugmontUser, setCreatedAugmontUser] = useState(null);
@@ -104,7 +98,9 @@ export default function Products() {
   const appProfile = getUserProfile();
   const augmontUser = getAugmontUser();
   const sessionMerchantId =
-    getAugmontSession()?.merchantId || "11692";
+    getAugmontSession()?.merchantId ||
+    import.meta.env.VITE_AUGMONT_MERCHANT_ID?.trim() ||
+    "";
   const uniqueId = resolvedAugmontUniqueId || augmontUser?.uniqueId || appProfile?.uniqueId || "";
   const customerMappedId =
     createdAugmontUser?.customerMappedId ||
@@ -283,11 +279,8 @@ export default function Products() {
 
       setSelectedAugmontProduct(product);
       setAugmontBuyForm({
-        lockPrice: String(product?.basePrice || ""),
         quantity: getDefaultQuantity(product),
-        modeOfPayment: "UPI",
-        blockId: "",
-        merchantTransactionId: buildMerchantTransactionId()
+        modeOfPayment: "UPI"
       });
       setCreatedAugmontUser(null);
       setAugmontBuyOrder(null);
@@ -329,6 +322,11 @@ export default function Products() {
   const handleCreateAugmontUser = async () => {
     if (!selectedAugmontProduct) return;
 
+    if (!sessionMerchantId) {
+      setSetupError("Merchant ID is missing. Configure it before creating the Augmont user.");
+      return;
+    }
+
     if (!selectedStateId) {
       setSetupError("Select a state to continue with Augmont onboarding.");
       return;
@@ -339,19 +337,24 @@ export default function Products() {
       return;
     }
 
+    if (!appProfile?.mobileNumber || !appProfile?.email || !appProfile?.fullName || !appProfile?.pinCode) {
+      setSetupError("App profile is missing full name, email, mobile number, or pincode. Complete the app profile first.");
+      return;
+    }
+
     setSetupLoading(true);
     setSetupError("");
     setCreatedAugmontUser(null);
 
     const nextUniqueId = appProfile?.uniqueId || `AUG-${Date.now()}`;
     const response = await createGoldUser({
-      mobileNumber: appProfile?.mobileNumber || "9999999999",
-      emailId: appProfile?.email || "user@example.com",
+      mobileNumber: appProfile.mobileNumber,
+      emailId: appProfile.email,
       uniqueId: nextUniqueId,
-      userName: appProfile?.fullName || "Augmont User",
+      userName: appProfile.fullName,
       cityId: selectedCityId,
       stateId: selectedStateId,
-      userPincode: appProfile?.pinCode || "500001"
+      userPincode: appProfile.pinCode
     });
 
     setSetupLoading(false);
@@ -363,14 +366,14 @@ export default function Products() {
 
     const profile = normalizeAugmontUserProfile(response.data, nextUniqueId);
     const persistedProfile = {
-      userName: profile.userName || appProfile?.fullName || "Augmont User",
+      userName: profile.userName || appProfile?.fullName || "",
       uniqueId: String(profile.uniqueId || nextUniqueId),
       customerMappedId: String(profile.customerMappedId || ""),
       mobileNumber: profile.mobileNumber || appProfile?.mobileNumber || "",
       userEmail: profile.userEmail || appProfile?.email || "",
       userStateId: String(profile.userStateId || selectedStateId),
       userCityId: String(profile.userCityId || selectedCityId),
-      userPincode: profile.userPincode || appProfile?.pinCode || "500001",
+      userPincode: profile.userPincode || appProfile?.pinCode || "",
       kycStatus: profile.kycStatus || "",
       userState:
         profile.userState ||
@@ -389,10 +392,10 @@ export default function Products() {
     setResolvedAugmontUniqueId(persistedProfile.uniqueId);
     setAugmontUser(persistedProfile);
     setUserProfile({
-      fullName: appProfile?.fullName || persistedProfile.userName || "Augmont User",
+      fullName: appProfile?.fullName || persistedProfile.userName || "",
       email: appProfile?.email || persistedProfile.userEmail || "",
       mobileNumber: appProfile?.mobileNumber || persistedProfile.mobileNumber || "",
-      pinCode: appProfile?.pinCode || persistedProfile.userPincode || "500001",
+      pinCode: appProfile?.pinCode || persistedProfile.userPincode || "",
       uniqueId: persistedProfile.uniqueId,
       partnerUserId: appProfile?.partnerUserId || "",
       customerMappedId: persistedProfile.customerMappedId,
@@ -413,13 +416,8 @@ export default function Products() {
       return;
     }
 
-    if (!augmontBuyForm.lockPrice || !augmontBuyForm.quantity || !augmontBuyForm.blockId) {
-      setBuyError("Lock price, quantity, and block id are required.");
-      return;
-    }
-
-    if (!augmontBuyForm.merchantTransactionId) {
-      setBuyError("Merchant transaction ID is required.");
+    if (!augmontBuyForm.quantity) {
+      setBuyError("Quantity is required.");
       return;
     }
 
@@ -430,13 +428,10 @@ export default function Products() {
     const response = await createAugmontBuyOrder({
       merchantId: sessionMerchantId,
       request: {
-        lockPrice: augmontBuyForm.lockPrice,
         metalType: String(selectedAugmontProduct?.metalType || "gold").toLowerCase(),
         quantity: augmontBuyForm.quantity,
-        merchantTransactionId: augmontBuyForm.merchantTransactionId,
         uniqueId,
-        modeOfPayment: augmontBuyForm.modeOfPayment,
-        blockId: augmontBuyForm.blockId
+        modeOfPayment: augmontBuyForm.modeOfPayment
       }
     });
 
@@ -579,7 +574,7 @@ export default function Products() {
                   {selectedAugmontProduct.name}
                 </h3>
                 <p className="mt-2 text-sm text-white/55">
-                  Complete the master data and user creation flow first. This modal intentionally stops before buy order create so the Augmont setup is ready for later flows.
+                  Complete the master data and user creation flow first. Once the Augmont user is ready, this same modal unlocks the backend-driven buy order step using the stored `uniqueId`.
                 </p>
               </div>
 
@@ -754,25 +749,10 @@ export default function Products() {
                       Buy order create is now available
                     </p>
                     <p className="mt-2 text-xs text-white/60">
-                      The app login is done, the Augmont user is ready, and this step now calls `orders/buy/create` using the stored `uniqueId`.
+                      The app login is done, the Augmont user is ready, and this step now calls `orders/buy/create` using the stored `uniqueId`. Backend fills provider-managed fields internally.
                     </p>
 
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Lock price</span>
-                        <input
-                          type="number"
-                          value={augmontBuyForm.lockPrice}
-                          onChange={(event) =>
-                            setAugmontBuyForm((current) => ({
-                              ...current,
-                              lockPrice: event.target.value
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                        />
-                      </label>
-
                       <label className="block">
                         <span className="mb-2 block text-sm text-white/60">Quantity</span>
                         <input
@@ -797,7 +777,7 @@ export default function Products() {
                               ...current,
                               modeOfPayment: event.target.value
                             }))
-                          }
+                            }
                           className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
                         >
                           {paymentModes.map((mode) => (
@@ -806,53 +786,6 @@ export default function Products() {
                             </option>
                           ))}
                         </select>
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Block ID</span>
-                        <input
-                          type="text"
-                          value={augmontBuyForm.blockId}
-                          onChange={(event) =>
-                            setAugmontBuyForm((current) => ({
-                              ...current,
-                              blockId: event.target.value
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          placeholder="Enter blockId"
-                        />
-                      </label>
-
-                      <label className="block sm:col-span-2">
-                        <span className="mb-2 block text-sm text-white/60">
-                          Merchant transaction ID
-                        </span>
-                        <div className="flex gap-3">
-                          <input
-                            type="text"
-                            value={augmontBuyForm.merchantTransactionId}
-                            onChange={(event) =>
-                              setAugmontBuyForm((current) => ({
-                                ...current,
-                                merchantTransactionId: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAugmontBuyForm((current) => ({
-                                ...current,
-                                merchantTransactionId: buildMerchantTransactionId()
-                              }))
-                            }
-                            className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/75 transition hover:border-yellow-500/30 hover:text-white"
-                          >
-                            Regenerate
-                          </button>
-                        </div>
                       </label>
                     </div>
 

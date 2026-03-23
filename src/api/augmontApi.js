@@ -4,11 +4,9 @@ const BASE_URL =
 const DEFAULT_MERCHANT_ID =
   import.meta.env.VITE_AUGMONT_MERCHANT_ID?.trim() || "11692";
 const AUGMONT_LOGIN_EMAIL =
-  import.meta.env.VITE_AUGMONT_LOGIN_EMAIL?.trim() ||
-  "Onboarding@sabbpe.com";
+  import.meta.env.VITE_AUGMONT_LOGIN_EMAIL?.trim() || "";
 const AUGMONT_LOGIN_PASSWORD =
-  import.meta.env.VITE_AUGMONT_LOGIN_PASSWORD?.trim() ||
-  "Z1!pX6@S3#vK9a";
+  import.meta.env.VITE_AUGMONT_LOGIN_PASSWORD?.trim() || "";
 const AUGMONT_PRODUCTS_TOKEN =
   import.meta.env.VITE_AUGMONT_PRODUCTS_TOKEN?.trim() || "";
 const AUGMONT_SESSION_KEY = "augmontSession";
@@ -47,6 +45,43 @@ const extractBackendMessage = (data, fallback = "Request failed") => {
   }
 
   return payloadMessage || data?.message || fallback;
+};
+
+const requestAugmontWrapperEndpoint = async (path, body = {}, fallbackMessage = "Request failed") => {
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        merchantId: body?.merchantId || DEFAULT_MERCHANT_ID,
+        ...body
+      })
+    });
+
+    const data = await getJson(res);
+
+    if (!res.ok || data?.status === "error") {
+      return {
+        ok: false,
+        message: extractBackendMessage(data, fallbackMessage),
+        raw: data
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+      raw: data
+    };
+  } catch (error) {
+    console.error("AUGMONT WRAPPER API ERROR:", error);
+    return {
+      ok: false,
+      message: fallbackMessage
+    };
+  }
 };
 
 const getStoredAugmontUser = () => {
@@ -583,6 +618,13 @@ export const loginAugmont = async ({ force = false } = {}) => {
     }
   }
 
+  if (!AUGMONT_LOGIN_EMAIL || !AUGMONT_LOGIN_PASSWORD) {
+    return {
+      ok: false,
+      message: "Augmont frontend login is not configured. Use the goldplatform wrapper session instead."
+    };
+  }
+
   try {
     clearAugmontSession();
     const data = await loginUser(AUGMONT_LOGIN_EMAIL, AUGMONT_LOGIN_PASSWORD);
@@ -614,136 +656,59 @@ export const loginAugmont = async ({ force = false } = {}) => {
 };
 
 export const createUser = async (userData) => {
-  const generatedUniqueId =
-    userData.uniqueId || `USER-${Date.now()}`;
-  const session = await loginAugmont({ force: true });
-
-  if (!session?.ok || !session?.token) {
+  if (
+    !userData?.mobileNumber ||
+    !userData?.email ||
+    !userData?.name ||
+    !userData?.cityId ||
+    !userData?.stateId ||
+    !userData?.userPincode
+  ) {
     return {
       status: "error",
       payload: {
-        message: session?.message || "Unable to authenticate with Augmont"
+        message: "Missing required user creation fields"
       }
     };
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/users/create`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.token}`
-    },
-    body: JSON.stringify({
-      merchantId: session.merchantId || DEFAULT_MERCHANT_ID,
+  const generatedUniqueId =
+    userData.uniqueId || `USER-${Date.now()}`;
+  const response = await requestAugmontWrapperEndpoint(
+    "/api/v1/users/create",
+    {
       request: {
-        mobileNumber: userData.mobileNumber || "9999999999",
+        mobileNumber: userData.mobileNumber,
         emailId: userData.email,
         uniqueId: generatedUniqueId,
         userName: userData.name,
-        cityId: "1",
-        stateId: "1",
-        userPincode: "500001"
+        cityId: userData.cityId,
+        stateId: userData.stateId,
+        userPincode: userData.userPincode
       }
-    })
-  });
+    },
+    "Unable to create Augmont user"
+  );
 
-  const data = await getJson(res);
-  setStoredAugmontUser(extractAugmontUser(data, generatedUniqueId));
-  return data;
-};
-
-const requestAugmontUserEndpoint = async (path, body) => {
-  const session = await loginAugmont();
-
-  if (!session?.ok || !session?.token) {
-    return {
-      ok: false,
-      message: session?.message || "Unable to authenticate with Augmont"
-    };
-  }
-
-  const requestOnce = async (activeSession) => {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${activeSession.token}`
-      },
-      body: JSON.stringify({
-        merchantId: activeSession.merchantId || DEFAULT_MERCHANT_ID,
-        ...body
-      })
-    });
-
-    return {
-      res,
-      data: await getJson(res)
-    };
-  };
-
-  let { res, data } = await requestOnce(session);
-
-  if (res.status === 401 || res.status === 403) {
-    clearAugmontSession();
-    const refreshedSession = await loginAugmont({ force: true });
-
-    if (refreshedSession?.ok && refreshedSession?.token) {
-      const retryResult = await requestOnce(refreshedSession);
-      res = retryResult.res;
-      data = retryResult.data;
-    }
-  }
-
-  if (!res.ok || data?.status !== "success") {
-    return {
-      ok: false,
-      message: extractBackendMessage(data, "Failed to fetch backend data"),
-      raw: data
-    };
+  if (response.ok) {
+    setStoredAugmontUser(extractAugmontUser(response.data, generatedUniqueId));
+    return response.data;
   }
 
   return {
-    ok: true,
-    data,
-    raw: data
+    status: "error",
+    payload: {
+      message: response.message || "Unable to create Augmont user"
+    }
   };
 };
 
+const requestAugmontUserEndpoint = async (path, body) => {
+  return requestAugmontWrapperEndpoint(path, body, "Failed to fetch backend data");
+};
+
 const requestAugmontOrderEndpoint = async (path, body = {}) => {
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        merchantId: body?.merchantId || DEFAULT_MERCHANT_ID,
-        ...body
-      })
-    });
-
-    const data = await getJson(res);
-
-    if (!res.ok || data?.status === "error") {
-      return {
-        ok: false,
-        message: extractBackendMessage(data, "Failed to complete order request"),
-        raw: data
-      };
-    }
-
-    return {
-      ok: true,
-      data,
-      raw: data
-    };
-  } catch (error) {
-    console.error("AUGMONT ORDER API ERROR:", error);
-    return {
-      ok: false,
-      message: "Failed to complete order request"
-    };
-  }
+  return requestAugmontWrapperEndpoint(path, body, "Failed to complete order request");
 };
 
 export const fetchAugmontUserProfile = async (uniqueId) => {
@@ -863,16 +828,51 @@ export const fetchAugmontProducts = async (
   }
 };
 
+export const fetchAugmontProductDetail = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  sku
+} = {}) => {
+  if (!sku) {
+    return {
+      ok: false,
+      message: "Missing product sku"
+    };
+  }
+
+  const response = await requestAugmontWrapperEndpoint(
+    "/api/v1/products/detail",
+    {
+      merchantId,
+      sku
+    },
+    "Failed to fetch product detail"
+  );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const product = extractOrderResult(response.data);
+
+  return {
+    ok: true,
+    product: normalizeProduct(product),
+    raw: response.raw
+  };
+};
+
 /* ---------------- GOLD RATES ---------------- */
 
-export const getGoldRates = async () => {
+export const getGoldRates = async (merchantId = DEFAULT_MERCHANT_ID) => {
   try {
     const res = await fetch(`${BASE_URL}/api/v1/rates/live`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        merchantId
+      })
     });
 
     return await getJson(res);
@@ -972,14 +972,16 @@ export const fetchAugmontRateHistory = async ({
   }
 };
 
-export const fetchAugmontSipRates = async () => {
+export const fetchAugmontSipRates = async (merchantId = DEFAULT_MERCHANT_ID) => {
   try {
     const res = await fetch(`${BASE_URL}/api/v1/rates/sip`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        merchantId
+      })
     });
 
     const data = await getJson(res);
@@ -1266,6 +1268,318 @@ export const fetchAugmontSellInvoice = async ({
     raw: response.raw
   };
 };
+
+export const createAugmontRedeemOrder = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  request = {}
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/redeem/create", {
+    merchantId,
+    request
+  });
+
+  if (!response.ok) return response;
+
+  const order = extractOrderResult(response.data);
+  const references = buildOrderReference(order, {
+    merchantId,
+    uniqueId: request?.uniqueId
+  });
+
+  return {
+    ok: true,
+    order,
+    references,
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontRedeemOrderDetail = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  merchantTransactionId,
+  uniqueId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/redeem/detail", {
+    merchantId,
+    merchantTransactionId,
+    uniqueId
+  });
+
+  if (!response.ok) return response;
+
+  return {
+    ok: true,
+    order: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontRedeemOrders = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/redeem/list", {
+    merchantId,
+    uniqueId
+  });
+
+  if (!response.ok) {
+    return {
+      ...response,
+      orders: []
+    };
+  }
+
+  return {
+    ok: true,
+    orders: extractOrderArray(response.data).map((order, index) =>
+      normalizeAugmontOrder("redeem", order, index)
+    ),
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontRedeemInvoice = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  transactionId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/invoices/redeem", {
+    merchantId,
+    transactionId
+  });
+
+  if (!response.ok) return response;
+
+  return {
+    ok: true,
+    invoice: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const createAugmontTransferOrder = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  request = {}
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/transfer/create", {
+    merchantId,
+    request
+  });
+
+  if (!response.ok) return response;
+
+  const order = extractOrderResult(response.data);
+  const references = buildOrderReference(order, {
+    merchantId,
+    uniqueId: request?.senderUniqueId || request?.uniqueId
+  });
+
+  return {
+    ok: true,
+    order,
+    references,
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontTransferOrderDetail = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  merchantTransactionId,
+  uniqueId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/transfer/detail", {
+    merchantId,
+    merchantTransactionId,
+    uniqueId
+  });
+
+  if (!response.ok) return response;
+
+  return {
+    ok: true,
+    order: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontTransferOrders = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/orders/transfer/list", {
+    merchantId,
+    uniqueId
+  });
+
+  if (!response.ok) {
+    return {
+      ...response,
+      orders: []
+    };
+  }
+
+  return {
+    ok: true,
+    orders: extractOrderArray(response.data).map((order, index) =>
+      normalizeAugmontOrder("transfer", order, index)
+    ),
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontWithdrawDetail = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  sellTransactionId,
+  uniqueId
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/withdraw/detail", {
+    merchantId,
+    sellTransactionId,
+    uniqueId
+  });
+
+  if (!response.ok) return response;
+
+  return {
+    ok: true,
+    withdraw: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const updateAugmontWithdraw = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  sellTransactionId,
+  uniqueId,
+  request = {}
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/withdraw/update", {
+    merchantId,
+    sellTransactionId,
+    uniqueId,
+    request
+  });
+
+  if (!response.ok) return response;
+
+  return {
+    ok: true,
+    withdraw: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const fetchAugmontFdSchemes = async ({
+  merchantId = DEFAULT_MERCHANT_ID
+} = {}) => {
+  const response = await requestAugmontOrderEndpoint("/api/v1/fd/schemes", {
+    merchantId
+  });
+
+  if (!response.ok) {
+    return {
+      ...response,
+      schemes: []
+    };
+  }
+
+  const result = extractOrderResult(response.data);
+
+  return {
+    ok: true,
+    schemes: Array.isArray(result) ? result : [],
+    raw: response.raw
+  };
+};
+
+export const preOrderAugmontFd = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  request = {}
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/pre-order", {
+    merchantId,
+    request
+  });
+
+export const createAugmontFdOrder = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  request = {}
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/orders/create", {
+    merchantId,
+    request
+  });
+
+export const fetchAugmontFdOrderDetail = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  merchantTransactionId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/orders/detail", {
+    merchantId,
+    merchantTransactionId
+  });
+
+export const fetchAugmontFdOrders = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId,
+  status,
+  page = 1,
+  count = 25
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/orders/list", {
+    merchantId,
+    uniqueId,
+    status,
+    page,
+    count
+  });
+
+export const preCloseAugmontFdOrder = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  transactionId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/orders/pre-close", {
+    merchantId,
+    transactionId
+  });
+
+export const closeAugmontFdOrder = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  transactionId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/orders/close", {
+    merchantId,
+    transactionId
+  });
+
+export const fetchAugmontFdTransactions = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  transactionId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/transactions", {
+    merchantId,
+    transactionId
+  });
+
+export const fetchAugmontFdPassbook = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/passbook", {
+    merchantId,
+    uniqueId
+  });
+
+export const fetchAugmontFdTerms = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  schemeId,
+  uniqueId
+} = {}) =>
+  requestAugmontOrderEndpoint("/api/v1/fd/terms", {
+    merchantId,
+    schemeId,
+    uniqueId
+  });
 
 export const submitAugmontBuyOrderFlow = async ({
   merchantId = DEFAULT_MERCHANT_ID,

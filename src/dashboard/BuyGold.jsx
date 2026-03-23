@@ -175,10 +175,10 @@ export default function BuyGold({ selectedProduct = null }) {
     setAmount(parsedAmount.toFixed(2));
     setGrams(parsedNextGrams.toFixed(4));
 
-    if (!silent && (!partnerUserId || !rateId)) {
-      toast.error("Live rate or partner user id is missing.");
+    if (!silent && !partnerUserId) {
+      toast.error("Partner user id is missing.");
     }
-  }, [partnerUserId, rateId]);
+  }, [partnerUserId]);
 
   const handleAmountChange = (value) => {
     setTxId("");
@@ -255,7 +255,7 @@ export default function BuyGold({ selectedProduct = null }) {
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [amount, grams, inputMode, rateId, partnerUserId, runBuyVerification]);
+  }, [amount, grams, inputMode, partnerUserId, runBuyVerification]);
 
   const handleVerifyBuy = async () => {
     if (!hasLiveRate) {
@@ -324,7 +324,6 @@ export default function BuyGold({ selectedProduct = null }) {
 
     const response = await verifySafeGoldBuy({
       partnerUserId: activePartnerUserId,
-      rateId,
       goldAmount: parsedGrams,
       buyPrice: total
     });
