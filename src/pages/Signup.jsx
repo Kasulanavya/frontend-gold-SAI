@@ -1,13 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, MapPinned, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import RegistrationForm from "../components/RegistrationForm";
-import {
-  createGoldUser,
-  fetchCities,
-  fetchStates
-} from "../api/goldUserRegistrationApi";
 import { sendOtp, setUserProfile, verifyOtp } from "../api/authApi";
 
 const initialFormValues = {
@@ -15,8 +10,8 @@ const initialFormValues = {
   mobileNumber: "",
   emailId: "",
   uniqueId: "",
-  stateId: "",
-  cityId: "",
+  stateName: "",
+  cityName: "",
   userPincode: "",
   dateOfBirth: "",
   otp: ""
@@ -51,12 +46,12 @@ const buildValidationErrors = (values, otpSent = false) => {
     errors.uniqueId = "Unique id is required";
   }
 
-  if (!values.stateId) {
-    errors.stateId = "Select a state";
+  if (!values.stateName.trim()) {
+    errors.stateName = "Enter a state name";
   }
 
-  if (!values.cityId) {
-    errors.cityId = "Select a city";
+  if (!values.cityName.trim()) {
+    errors.cityName = "Enter a city name";
   }
 
   if (!pincodeRegex.test(values.userPincode.trim())) {
@@ -86,65 +81,11 @@ export default function Signup() {
   const navigate = useNavigate();
   const [formValues, setFormValues] = useState(initialFormValues);
   const [errors, setErrors] = useState({});
-  const [states, setStates] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [loadingStates, setLoadingStates] = useState(true);
-  const [loadingCities, setLoadingCities] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [statesError, setStatesError] = useState("");
-  const [citiesError, setCitiesError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const goldCoins = useMemo(() => Array.from({ length: 8 }), []);
-
-  const loadStates = async () => {
-    setLoadingStates(true);
-    setStatesError("");
-
-    const response = await fetchStates();
-
-    if (!response?.ok) {
-      setStates([]);
-      setStatesError(response?.message || "Unable to load states");
-      setLoadingStates(false);
-      return;
-    }
-
-    setStates(response.states);
-    setLoadingStates(false);
-  };
-
-  const loadCities = async (stateId) => {
-    if (!stateId) {
-      setCities([]);
-      setCitiesError("");
-      return;
-    }
-
-    setLoadingCities(true);
-    setCitiesError("");
-
-    const response = await fetchCities(stateId);
-
-    if (!response?.ok) {
-      setCities([]);
-      setCitiesError(response?.message || "Unable to load cities");
-      setLoadingCities(false);
-      return;
-    }
-
-    setCities(response.cities);
-    setLoadingCities(false);
-  };
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      loadStates();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
 
   const handleChange = (name, value) => {
     const nextValue = sanitizeValue(name, value);
@@ -164,25 +105,6 @@ export default function Signup() {
     if (name === "otp" && submitError) {
       setSubmitError("");
     }
-  };
-
-  const handleStateChange = async (stateId) => {
-    setFormValues((current) => ({
-      ...current,
-      stateId,
-      cityId: ""
-    }));
-
-    setCities([]);
-    setCitiesError("");
-    setErrors((current) => {
-      const nextErrors = { ...current };
-      delete nextErrors.stateId;
-      delete nextErrors.cityId;
-      return nextErrors;
-    });
-
-    await loadCities(stateId);
   };
 
   const handleSendOtp = async (event) => {
@@ -247,42 +169,16 @@ export default function Signup() {
       return;
     }
 
-    const createResponse = await createGoldUser({
-      mobileNumber: formValues.mobileNumber.trim(),
-      emailId: formValues.emailId.trim(),
-      uniqueId: formValues.uniqueId.trim(),
-      userName: formValues.userName.trim(),
-      cityId: formValues.cityId,
-      stateId: formValues.stateId,
-      userPincode: formValues.userPincode.trim(),
-      dateOfBirth: formValues.dateOfBirth,
-      utmSource: "web",
-      utmMedium: "app",
-      utmCampaign: "registration"
-    });
-
     setSubmitting(false);
-
-    if (!createResponse?.ok) {
-      const message =
-        createResponse?.message ||
-        "User created in auth backend, but gold registration failed";
-      setSubmitError(message);
-      toast.error(message);
-      return;
-    }
-
-    const uniqueId =
-      createResponse?.data?.uniqueId ||
-      createResponse?.raw?.payload?.result?.uniqueId ||
-      formValues.uniqueId.trim();
 
     setUserProfile({
       fullName: formValues.userName.trim(),
       email: formValues.emailId.trim(),
       mobileNumber: formValues.mobileNumber.trim(),
       pinCode: formValues.userPincode.trim(),
-      uniqueId
+      uniqueId: formValues.uniqueId.trim(),
+      augmontState: formValues.stateName.trim(),
+      augmontCity: formValues.cityName.trim()
     });
 
     setSuccess(true);
@@ -290,9 +186,6 @@ export default function Signup() {
   };
 
   const handleSubmit = otpSent ? handleVerifyAndCreate : handleSendOtp;
-
-  const selectedState = states.find((item) => item.id === formValues.stateId);
-  const selectedCity = cities.find((item) => item.id === formValues.cityId);
 
   return (
     <div
@@ -355,9 +248,9 @@ export default function Signup() {
                     One shared onboarding flow for every gold user.
                   </h1>
                   <p className="max-w-lg text-sm leading-7 text-yellow-100/80 md:text-base">
-                    We load master data from the backend, collect registration details once,
-                    and submit a single wrapper registration request with the selected
-                    state and city ids.
+                    App registration is handled only by the auth backend. We still collect
+                    state and city names here so the later goldplatform onboarding flow can
+                    reuse them, but provider linking now happens only after app login.
                   </p>
                 </div>
               </div>
@@ -368,24 +261,24 @@ export default function Signup() {
                   <div>
                     <p className="text-sm font-semibold text-white">Backend-driven location data</p>
                     <p className="mt-1 text-xs leading-6 text-yellow-100/70">
-                      State and city values are fetched live from master APIs. No hardcoded
-                      location text is used in the create-user request.
+                      State and city names are stored with the app profile so the wrapper
+                      onboarding screens can use them later without re-entering everything.
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3 border-t border-yellow-300/10 pt-4 text-xs text-yellow-100/70">
                   <div className="flex items-center justify-between gap-4">
-                    <span>State list</span>
-                    <span>{loadingStates ? "Loading..." : `${states.length} loaded`}</span>
+                    <span>App auth</span>
+                    <span>{otpSent ? "OTP sent" : "Pending"}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span>Selected state</span>
-                    <span>{selectedState?.name || "Not selected"}</span>
+                    <span>{formValues.stateName || "Not entered"}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span>Selected city</span>
-                    <span>{selectedCity?.name || "Not selected"}</span>
+                    <span>{formValues.cityName || "Not entered"}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span>Registration status</span>
@@ -423,8 +316,8 @@ export default function Signup() {
                     <h2 className="text-3xl font-bold text-white">Register</h2>
                     <p className="text-sm leading-6 text-yellow-100/80">
                       {otpSent
-                        ? "Verify the OTP, then we will submit one unified registration request to the gold backend."
-                        : "Fill your details once. We will fetch states and cities from the backend and use their ids in the registration request."}
+                        ? "Verify the OTP to complete app registration. Provider onboarding now happens later through wrapper APIs after login."
+                        : "Fill your details once. This step creates only the app account; gold wrapper onboarding starts after login."}
                     </p>
                   </div>
 
@@ -437,24 +330,15 @@ export default function Signup() {
                   <RegistrationForm
                     formValues={formValues}
                     errors={errors}
-                    states={states}
-                    cities={cities}
-                    loadingStates={loadingStates}
-                    loadingCities={loadingCities}
                     submitting={submitting}
                     otpSent={otpSent}
                     onChange={handleChange}
-                    onStateChange={handleStateChange}
                     onSubmit={handleSubmit}
                     onResetOtp={() => {
                       setOtpSent(false);
                       setSubmitError("");
                       handleChange("otp", "");
                     }}
-                    onRetryStates={loadStates}
-                    statesError={statesError}
-                    citiesError={citiesError}
-                    onRetryCities={() => loadCities(formValues.stateId)}
                   />
 
                   <p className="mt-6 text-center text-sm text-yellow-200">

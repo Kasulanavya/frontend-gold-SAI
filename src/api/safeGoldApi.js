@@ -119,6 +119,20 @@ const extractFirstDefined = (data, paths = []) => {
   return undefined;
 };
 
+const extractResultPayload = (data) => {
+  const payload = Array.isArray(data) ? data[0] : data;
+
+  return (
+    payload?.payload?.result?.data ||
+    payload?.payload?.result ||
+    payload?.result?.data ||
+    payload?.result ||
+    payload?.data ||
+    payload ||
+    {}
+  );
+};
+
 const extractVerifiedTrade = (data, fallback = {}) => {
   const payload = Array.isArray(data) ? data[0] : data;
   const result =
@@ -400,12 +414,18 @@ export const registerSafeGoldUser = async ({
     });
 
     const data = await getJson(res);
-    const payload = Array.isArray(data) ? data[0] : data;
+    const payload = extractResultPayload(data);
+    const id = String(
+      payload?.id ||
+        payload?.partnerUserId ||
+        payload?.userId ||
+        ""
+    );
 
     return {
-      ok: res.ok && Boolean(payload?.id),
+      ok: res.ok && Boolean(id),
       user: {
-        id: String(payload?.id || ""),
+        id,
         name: payload?.name || name || "",
         mobileNo: payload?.mobileNo || mobileNo || "",
         pinCode: payload?.pincode || payload?.pinCode || pinCode || "",
@@ -415,7 +435,10 @@ export const registerSafeGoldUser = async ({
       raw: data,
       message: res.ok
         ? ""
-        : payload?.message || data?.message || "SafeGold user registration failed"
+        : payload?.message ||
+          data?.message ||
+          data?.payload?.message ||
+          "SafeGold user registration failed"
     };
   } catch (error) {
     console.error("SAFEGOLD USER REGISTER ERROR:", error);
@@ -430,6 +453,115 @@ export const registerSafeGoldUser = async ({
         goldBalance: 0
       },
       message: "SafeGold user registration failed"
+    };
+  }
+};
+
+export const fetchSafeGoldUserBalance = async ({ partnerUserId }) => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/users/balance`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        partnerUserId: Number(partnerUserId)
+      })
+    });
+
+    const data = await getJson(res);
+    const payload = extractResultPayload(data);
+
+    return {
+      ok: res.ok,
+      balance: {
+        partnerUserId: String(partnerUserId || ""),
+        goldBalance: toNumber(
+          payload?.goldBalance ??
+            payload?.balance ??
+            payload?.currentBalance
+        ),
+        sellableBalance: toNumber(
+          payload?.sellableBalance ??
+            payload?.availableToSell ??
+            payload?.availableBalance
+        ),
+        kycRequired: Boolean(
+          payload?.kycRequired ??
+            payload?.isKycRequired ??
+            payload?.requiresKyc
+        ),
+        kycCompleted: Boolean(
+          payload?.kycCompleted ??
+            payload?.isKycCompleted ??
+            payload?.kycVerified
+        ),
+        raw: payload
+      },
+      raw: data,
+      message: res.ok
+        ? ""
+        : payload?.message ||
+          data?.message ||
+          data?.payload?.message ||
+          "Failed to fetch SafeGold balance"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD BALANCE ERROR:", error);
+    return {
+      ok: false,
+      balance: {
+        partnerUserId: String(partnerUserId || ""),
+        goldBalance: 0,
+        sellableBalance: 0,
+        kycRequired: false,
+        kycCompleted: false,
+        raw: {}
+      },
+      message: "Failed to fetch SafeGold balance"
+    };
+  }
+};
+
+export const fetchSafeGoldUserTransactions = async ({ partnerUserId }) => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/users/transactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        partnerUserId: Number(partnerUserId)
+      })
+    });
+
+    const data = await getJson(res);
+    const payload = extractResultPayload(data);
+    const transactions = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.transactions)
+        ? payload.transactions
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+    return {
+      ok: res.ok,
+      transactions,
+      raw: data,
+      message: res.ok
+        ? ""
+        : payload?.message ||
+          data?.message ||
+          data?.payload?.message ||
+          "Failed to fetch SafeGold transactions"
+    };
+  } catch (error) {
+    console.error("SAFEGOLD TRANSACTIONS ERROR:", error);
+    return {
+      ok: false,
+      transactions: [],
+      message: "Failed to fetch SafeGold transactions"
     };
   }
 };
@@ -771,66 +903,6 @@ export const fetchSafeGoldSellStatus = async ({ txId }) => {
       ok: false,
       status: extractTransactionStatus({}, { txId }),
       message: "Sell status fetch failed"
-    };
-  }
-};
-
-export const fetchSafeGoldUserBalance = async ({ partnerUserId }) => {
-  try {
-    const res = await fetch(`${BASE_URL}/api/v1/users/balance`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        partnerUserId: Number(partnerUserId)
-      })
-    });
-
-    const data = await getJson(res);
-    return {
-      ok: res.ok,
-      balance: extractSafeGoldResult(data),
-      raw: data,
-      message: res.ok ? "" : data?.message || data?.payload?.message || "Unable to fetch SafeGold balance"
-    };
-  } catch (error) {
-    console.error("SAFEGOLD BALANCE ERROR:", error);
-    return {
-      ok: false,
-      balance: {},
-      message: "Unable to fetch SafeGold balance"
-    };
-  }
-};
-
-export const fetchSafeGoldUserTransactions = async ({ partnerUserId }) => {
-  try {
-    const res = await fetch(`${BASE_URL}/api/v1/users/transactions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        partnerUserId: Number(partnerUserId)
-      })
-    });
-
-    const data = await getJson(res);
-    const result = extractSafeGoldResult(data);
-
-    return {
-      ok: res.ok,
-      transactions: Array.isArray(result) ? result : Array.isArray(result?.transactions) ? result.transactions : [],
-      raw: data,
-      message: res.ok ? "" : data?.message || data?.payload?.message || "Unable to fetch SafeGold transactions"
-    };
-  } catch (error) {
-    console.error("SAFEGOLD TRANSACTIONS ERROR:", error);
-    return {
-      ok: false,
-      transactions: [],
-      message: "Unable to fetch SafeGold transactions"
     };
   }
 };

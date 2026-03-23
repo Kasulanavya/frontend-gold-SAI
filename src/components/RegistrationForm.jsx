@@ -22,65 +22,17 @@ function FormField({
   );
 }
 
-function SelectField({
-  id,
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled = false
-}) {
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      className={inputBaseClassName}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((option) => (
-        <option key={option.id} value={option.id}>
-          {option.name}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 export default function RegistrationForm({
   formValues,
   errors,
-  states,
-  cities,
-  loadingStates,
-  loadingCities,
   submitting,
   otpSent,
   onChange,
-  onStateChange,
   onSubmit,
-  onResetOtp,
-  onRetryStates,
-  statesError,
-  citiesError,
-  onRetryCities
+  onResetOtp
 }) {
   return (
     <form className="mt-8 space-y-5" onSubmit={onSubmit}>
-      {statesError ? (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-950/40 p-4 text-sm text-rose-100">
-          <p>{statesError}</p>
-          <button
-            type="button"
-            onClick={onRetryStates}
-            className="mt-3 rounded-lg border border-rose-300/40 px-3 py-2 text-xs font-semibold text-rose-100"
-          >
-            Retry state list
-          </button>
-        </div>
-      ) : null}
-
       <div className="grid gap-5 md:grid-cols-2">
         <FormField id="userName" label="Full name" error={errors.userName} required>
           <input
@@ -132,44 +84,28 @@ export default function RegistrationForm({
           />
         </FormField>
 
-        <FormField id="stateId" label="State" error={errors.stateId} required>
-          <SelectField
-            id="stateId"
-            value={formValues.stateId}
-            onChange={(event) => onStateChange(event.target.value)}
-            options={states}
-            disabled={loadingStates || otpSent}
-            placeholder={loadingStates ? "Loading states..." : "Select state"}
+        <FormField id="stateName" label="State" error={errors.stateName} required>
+          <input
+            id="stateName"
+            type="text"
+            value={formValues.stateName}
+            onChange={(event) => onChange("stateName", event.target.value)}
+            disabled={otpSent}
+            placeholder="State name"
+            className={inputBaseClassName}
           />
         </FormField>
 
-        <FormField id="cityId" label="City" error={errors.cityId} required>
-          <SelectField
-            id="cityId"
-            value={formValues.cityId}
-            onChange={(event) => onChange("cityId", event.target.value)}
-            options={cities}
-            disabled={!formValues.stateId || loadingCities || otpSent}
-            placeholder={
-              !formValues.stateId
-                ? "Select state first"
-                : loadingCities
-                  ? "Loading cities..."
-                  : "Select city"
-            }
+        <FormField id="cityName" label="City" error={errors.cityName} required>
+          <input
+            id="cityName"
+            type="text"
+            value={formValues.cityName}
+            onChange={(event) => onChange("cityName", event.target.value)}
+            disabled={otpSent}
+            placeholder="City name"
+            className={inputBaseClassName}
           />
-          {citiesError ? (
-            <div className="mt-2 rounded-xl border border-rose-400/40 bg-rose-950/30 p-3 text-xs text-rose-100">
-              <p>{citiesError}</p>
-              <button
-                type="button"
-                onClick={onRetryCities}
-                className="mt-2 rounded-lg border border-rose-300/40 px-3 py-2 font-semibold text-rose-100"
-              >
-                Retry city list
-              </button>
-            </div>
-          ) : null}
         </FormField>
 
         <FormField id="userPincode" label="Pincode" error={errors.userPincode} required>
@@ -224,7 +160,7 @@ export default function RegistrationForm({
 
       <button
         type="submit"
-        disabled={submitting || loadingStates}
+        disabled={submitting}
         className="w-full rounded-xl bg-yellow-400 py-3 text-base font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {submitting

@@ -6,10 +6,15 @@ import {
   validateToken
 } from "../api/authApi";
 import {
-  fetchAugmontPassbook,
+  fetchAugmontAddresses,
+  fetchAugmontKycProfile,
   fetchAugmontUserProfile,
   getAugmontUser
 } from "../api/augmontApi";
+import {
+  fetchSafeGoldUserBalance,
+  fetchSafeGoldUserTransactions
+} from "../api/safeGoldApi";
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -67,6 +72,19 @@ const formatActivity = (entry, index) => {
   };
 };
 
+const buildAugmontIdCandidates = (latestProfile, storedAugmontUser) => {
+  const candidates = [
+    storedAugmontUser?.uniqueId,
+    latestProfile?.uniqueId,
+    storedAugmontUser?.customerMappedId,
+    latestProfile?.customerMappedId
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  return [...new Set(candidates)];
+};
+
 export default function Profile() {
   const initialProfile = useMemo(() => getUserProfile() || {}, []);
   const [editing, setEditing] = useState(false);
@@ -79,8 +97,15 @@ export default function Profile() {
     investment: 0,
     holdings: 0,
     kycStatus: "Pending",
-    activities: []
+    sellableBalance: 0,
+    activities: [],
+    addresses: [],
+    linkedProviders: {
+      augmontUniqueId: "",
+      safeGoldPartnerUserId: ""
+    }
   });
+  const [kycProfile, setKycProfile] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -92,7 +117,11 @@ export default function Profile() {
       const authResult = await validateToken();
       const latestProfile = getUserProfile() || initialProfile;
       const storedAugmontUser = getAugmontUser();
-      const uniqueId = latestProfile?.uniqueId || storedAugmontUser?.uniqueId || "";
+      const partnerUserId = latestProfile?.partnerUserId || "";
+      const augmontIdCandidates = buildAugmontIdCandidates(
+        latestProfile,
+        storedAugmontUser
+      );
 
       if (!isMounted) return;
 
@@ -100,21 +129,50 @@ export default function Profile() {
       setPhone(latestProfile?.mobileNumber || "");
       setEmail(latestProfile?.email || "");
 
-      if (!uniqueId) {
+      if (augmontIdCandidates.length === 0 && !partnerUserId) {
         setError("Backend user mapping is missing for this account.");
         setLoading(false);
         return;
       }
 
-      const [userProfileResponse, passbookResponse] = await Promise.all([
-        fetchAugmontUserProfile(uniqueId),
-        fetchAugmontPassbook(uniqueId)
+      let resolvedAugmontId = "";
+      let userProfileResponse = null;
+      let kycProfileResponse = null;
+      let addressListResponse = null;
+
+      for (const candidateId of augmontIdCandidates) {
+        const profileResponse = await fetchAugmontUserProfile(candidateId);
+
+        if (profileResponse?.ok) {
+          resolvedAugmontId = candidateId;
+          userProfileResponse = profileResponse;
+          const [kycResponse, addressesResponse] = await Promise.all([
+            fetchAugmontKycProfile(candidateId),
+            fetchAugmontAddresses(candidateId)
+          ]);
+          kycProfileResponse = kycResponse;
+          addressListResponse = addressesResponse;
+          break;
+        }
+
+        userProfileResponse = profileResponse;
+      }
+
+      const [safeGoldBalanceResponse, safeGoldTransactionsResponse] = await Promise.all([
+        partnerUserId
+          ? fetchSafeGoldUserBalance({ partnerUserId })
+          : Promise.resolve(null),
+        partnerUserId
+          ? fetchSafeGoldUserTransactions({ partnerUserId })
+          : Promise.resolve(null)
       ]);
 
       if (!isMounted) return;
 
       const augmontProfile = userProfileResponse?.profile || {};
-      const passbook = passbookResponse?.passbook || {};
+      const balance = safeGoldBalanceResponse?.balance || {};
+      const addresses = addressListResponse?.addresses || [];
+      const transactions = safeGoldTransactionsResponse?.transactions || [];
       const backendName =
         augmontProfile?.userName ||
         augmontProfile?.name ||
@@ -135,50 +193,70 @@ export default function Profile() {
         fullName: backendName,
         mobileNumber: backendPhone,
         email: backendEmail,
-        uniqueId
+        uniqueId: resolvedAugmontId || latestProfile?.uniqueId || "",
+        partnerUserId,
+        customerMappedId:
+          augmontProfile?.customerMappedId ||
+          latestProfile?.customerMappedId ||
+          storedAugmontUser?.customerMappedId ||
+          "",
+        augmontKycStatus:
+          augmontProfile?.kycStatus ||
+          kycProfileResponse?.kycProfile?.kycStatus ||
+          kycProfileResponse?.kycProfile?.status ||
+          ""
       });
 
       setName(backendName);
       setPhone(backendPhone);
       setEmail(backendEmail);
 
-      const activitiesSource =
-        passbook?.entries ||
-        passbook?.transactions ||
-        passbook?.passbook ||
-        passbook?.data ||
-        [];
+      const activitiesSource = Array.isArray(transactions) ? transactions : [];
+
+      setKycProfile(kycProfileResponse?.kycProfile || null);
 
       setBackendStats({
-        investment: pickFirstNumber(
-          passbook?.totalInvestment,
-          passbook?.investedAmount,
-          passbook?.investmentAmount
-        ),
+        investment: pickFirstNumber(balance?.investmentAmount, balance?.buyValue),
         holdings: pickFirstNumber(
-          passbook?.goldBalance,
-          passbook?.balance,
+          balance?.goldBalance,
           augmontProfile?.goldBalance,
           augmontProfile?.balance
         ),
+        sellableBalance: pickFirstNumber(balance?.sellableBalance),
         kycStatus:
           augmontProfile?.kycStatus ||
-          augmontProfile?.status ||
-          augmontProfile?.userKycStatus ||
+          kycProfileResponse?.kycProfile?.kycStatus ||
+          kycProfileResponse?.kycProfile?.status ||
+          (balance?.kycCompleted ? "Completed" : balance?.kycRequired ? "Required" : "") ||
           "Pending",
+        addresses: Array.isArray(addresses) ? addresses : [],
+        linkedProviders: {
+          augmontUniqueId: resolvedAugmontId,
+          safeGoldPartnerUserId: partnerUserId
+        },
         activities: Array.isArray(activitiesSource)
           ? activitiesSource.slice(0, 5).map(formatActivity)
           : []
       });
 
-      if (!authResult?.ok && !userProfileResponse?.ok && !passbookResponse?.ok) {
+      if (
+        !authResult?.ok &&
+        (!resolvedAugmontId || !userProfileResponse?.ok) &&
+        (!partnerUserId || !safeGoldBalanceResponse?.ok) &&
+        (!partnerUserId || !safeGoldTransactionsResponse?.ok)
+      ) {
         setError("Unable to load profile data from backend.");
-      } else if (!userProfileResponse?.ok || !passbookResponse?.ok) {
+      } else if (
+        (partnerUserId &&
+          (!safeGoldBalanceResponse?.ok || !safeGoldTransactionsResponse?.ok))
+      ) {
         setError(
-          userProfileResponse?.message ||
-            passbookResponse?.message ||
+          safeGoldBalanceResponse?.message ||
+            safeGoldTransactionsResponse?.message ||
             "Some backend profile sections could not be loaded."
         );
+      } else {
+        setError("");
       }
 
       setLoading(false);
@@ -292,8 +370,67 @@ export default function Profile() {
           </div>
         </div>
 
+        <div className="grid md:grid-cols-3 gap-6 mt-6">
+          <div className="bg-white/5 p-6 rounded-xl">
+            <p className="text-white/60">Sellable Balance</p>
+            <h3 className="text-2xl font-bold">
+              {loading ? "Loading..." : `${backendStats.sellableBalance.toFixed(4)}g`}
+            </h3>
+          </div>
+
+          <div className="bg-white/5 p-6 rounded-xl">
+            <p className="text-white/60">Augmont Unique ID</p>
+            <h3 className="text-sm font-semibold break-all">
+              {loading ? "Loading..." : backendStats.linkedProviders.augmontUniqueId || "Not linked"}
+            </h3>
+          </div>
+
+          <div className="bg-white/5 p-6 rounded-xl">
+            <p className="text-white/60">SafeGold Partner User ID</p>
+            <h3 className="text-sm font-semibold break-all">
+              {loading
+                ? "Loading..."
+                : backendStats.linkedProviders.safeGoldPartnerUserId || "Not linked"}
+            </h3>
+          </div>
+        </div>
+
+        <div className="grid gap-6 mt-6 lg:grid-cols-2">
+          <div className="bg-white/5 p-6 rounded-xl">
+            <h3 className="text-lg font-semibold mb-4">Saved Addresses</h3>
+            <div className="space-y-3 text-white/70">
+              {loading && <p>Loading saved addresses...</p>}
+              {!loading && backendStats.addresses.length === 0 && (
+                <p>No saved addresses available.</p>
+              )}
+              {!loading &&
+                backendStats.addresses.map((address, index) => (
+                  <div
+                    key={`${address?.id || address?.addressId || index}`}
+                    className="rounded-lg border border-white/10 p-3"
+                  >
+                    <p className="text-white">
+                      {address?.address || address?.fullAddress || "Saved address"}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <div className="bg-white/5 p-6 rounded-xl">
+            <h3 className="text-lg font-semibold mb-4">KYC Profile</h3>
+            {loading ? (
+              <p className="text-white/70">Loading KYC profile...</p>
+            ) : (
+              <pre className="overflow-auto whitespace-pre-wrap break-words text-xs text-white/60">
+                {JSON.stringify(kycProfile || {}, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white/5 p-6 rounded-xl mt-6">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <h3 className="text-lg font-semibold mb-4">SafeGold Transactions</h3>
 
           <div className="space-y-3 text-white/70">
             {loading && <p>Loading activity from backend...</p>}

@@ -7,18 +7,20 @@ import ProductCard from "../components/ProductCard";
 import SafeGoldProductCard from "../components/SafeGoldProductCard";
 import { getUserProfile, setUserProfile } from "../api/authApi";
 import {
+  createAugmontAddress,
   createAugmontBuyOrder,
+  createAugmontUser,
+  createAugmontUserBank,
+  fetchAugmontAddresses,
+  fetchAugmontKycProfile,
   fetchAugmontProducts,
   getAugmontSession,
   getAugmontUser,
   normalizeAugmontUserProfile,
+  updateAugmontUser,
+  updateAugmontKyc,
   setAugmontUser
 } from "../api/augmontApi";
-import {
-  createGoldUser,
-  fetchCities,
-  fetchStates
-} from "../api/goldUserRegistrationApi";
 import { fetchSafeGoldProducts } from "../api/safeGoldApi";
 
 const initialPagination = {
@@ -29,6 +31,8 @@ const initialPagination = {
 };
 
 const paymentModes = ["UPI", "NET_BANKING", "CARD"];
+const buildGeneratedUniqueId = () =>
+  `AUG-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
 const formatPrice = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
@@ -80,12 +84,21 @@ export default function Products() {
   const [resolvedAugmontUniqueId, setResolvedAugmontUniqueId] = useState("");
   const [createdAugmontUser, setCreatedAugmontUser] = useState(null);
   const [augmontBuyOrder, setAugmontBuyOrder] = useState(null);
-  const [augmontStates, setAugmontStates] = useState([]);
-  const [augmontCities, setAugmontCities] = useState([]);
-  const [selectedStateId, setSelectedStateId] = useState("");
-  const [selectedCityId, setSelectedCityId] = useState("");
-  const [statesLoading, setStatesLoading] = useState(false);
-  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [augmontAddresses, setAugmontAddresses] = useState([]);
+  const [augmontKycProfile, setAugmontKycProfile] = useState(null);
+  const [onboardingForm, setOnboardingForm] = useState({
+    userName: "",
+    mobileNumber: "",
+    emailId: "",
+    stateName: "",
+    cityName: "",
+    userPincode: "",
+    accountName: "",
+    accountNumber: "",
+    ifscCode: "",
+    address: "",
+    kycPayload: ""
+  });
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const [buyLoading, setBuyLoading] = useState(false);
@@ -112,6 +125,8 @@ export default function Products() {
     customerMappedId: appProfile?.customerMappedId || "",
     userStateId: appProfile?.augmontStateId || "",
     userCityId: appProfile?.augmontCityId || "",
+    stateName: appProfile?.augmontState || "",
+    cityName: appProfile?.augmontCity || "",
     userState: appProfile?.augmontState || "",
     userCity: appProfile?.augmontCity || "",
     kycStatus: appProfile?.augmontKycStatus || "",
@@ -121,7 +136,13 @@ export default function Products() {
     userPincode: appProfile?.pinCode || "",
     userName: appProfile?.fullName || ""
   };
-  const onboardingReady = Boolean(uniqueId);
+  const onboardingReady = Boolean(
+    createdAugmontUser?.profileCompleted ||
+      createdAugmontUser?.customerMappedId ||
+      augmontUser?.profileCompleted ||
+      augmontUser?.customerMappedId ||
+      appProfile?.customerMappedId
+  );
 
   const loadAugmontProducts = useCallback(async ({ page = 1, append = false } = {}) => {
     const requestKey = `${page}-10-${append ? "append" : "replace"}`;
@@ -197,45 +218,6 @@ export default function Products() {
     setSafeGoldLoading(false);
   }, []);
 
-  const loadAugmontStates = useCallback(async () => {
-    setStatesLoading(true);
-    setSetupError("");
-
-    const response = await fetchStates();
-
-    setStatesLoading(false);
-
-    if (!response?.ok) {
-      setSetupError(response?.message || "Unable to load states");
-      setAugmontStates([]);
-      return;
-    }
-
-    setAugmontStates(response.states || []);
-  }, []);
-
-  const loadAugmontCities = useCallback(async (stateId) => {
-    if (!stateId) {
-      setAugmontCities([]);
-      return;
-    }
-
-    setCitiesLoading(true);
-    setSetupError("");
-
-    const response = await fetchCities(stateId);
-
-    setCitiesLoading(false);
-
-    if (!response?.ok) {
-      setSetupError(response?.message || "Unable to load cities");
-      setAugmontCities([]);
-      return;
-    }
-
-    setAugmontCities(response.cities || []);
-  }, []);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       loadAugmontProducts();
@@ -244,26 +226,6 @@ export default function Products() {
 
     return () => window.clearTimeout(timeoutId);
   }, [loadAugmontProducts, loadSafeGoldProducts]);
-
-  useEffect(() => {
-    if (!selectedAugmontProduct) return;
-
-    const timeoutId = window.setTimeout(async () => {
-      await loadAugmontStates();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [loadAugmontStates, selectedAugmontProduct]);
-
-  useEffect(() => {
-    if (!selectedStateId) return;
-
-    const timeoutId = window.setTimeout(async () => {
-      await loadAugmontCities(selectedStateId);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [loadAugmontCities, selectedStateId]);
 
   const handleProductClick = (sku) => {
     if (!sku) return;
@@ -284,11 +246,45 @@ export default function Products() {
       });
       setCreatedAugmontUser(null);
       setAugmontBuyOrder(null);
+      setAugmontAddresses([]);
+      setAugmontKycProfile(null);
       setResolvedAugmontUniqueId(nextUniqueId);
-      setSelectedStateId("");
-      setSelectedCityId("");
-      setAugmontCities([]);
-      setAugmontStates([]);
+      setOnboardingForm({
+        userName:
+          augmontUser?.userName ||
+          appProfile?.fullName ||
+          "Augmont User",
+        mobileNumber:
+          augmontUser?.mobileNumber ||
+          appProfile?.mobileNumber ||
+          "",
+        emailId:
+          augmontUser?.userEmail ||
+          appProfile?.email ||
+          "",
+        stateName:
+          augmontUser?.stateName ||
+          augmontUser?.userState ||
+          appProfile?.augmontState ||
+          "",
+        cityName:
+          augmontUser?.cityName ||
+          augmontUser?.userCity ||
+          appProfile?.augmontCity ||
+          "",
+        userPincode:
+          augmontUser?.userPincode ||
+          appProfile?.pinCode ||
+          "500001",
+        accountName:
+          augmontUser?.userName ||
+          appProfile?.fullName ||
+          "",
+        accountNumber: "",
+        ifscCode: "",
+        address: "",
+        kycPayload: ""
+      });
       setSetupError("");
       setBuyError("");
       return;
@@ -321,19 +317,35 @@ export default function Products() {
 
   const handleCreateAugmontUser = async () => {
     if (!selectedAugmontProduct) return;
+    const trimmedStateName = onboardingForm.stateName.trim();
+    const trimmedCityName = onboardingForm.cityName.trim();
+    const trimmedAddress = onboardingForm.address.trim();
+    const trimmedAccountNumber = onboardingForm.accountNumber.trim();
+    const trimmedAccountName = onboardingForm.accountName.trim();
+    const trimmedIfscCode = onboardingForm.ifscCode.trim();
 
     if (!sessionMerchantId) {
       setSetupError("Merchant ID is missing. Configure it before creating the Augmont user.");
       return;
     }
 
-    if (!selectedStateId) {
-      setSetupError("Select a state to continue with Augmont onboarding.");
+    if (!trimmedStateName || !trimmedCityName) {
+      setSetupError("State and city names are required for Augmont onboarding.");
       return;
     }
 
-    if (!selectedCityId) {
-      setSetupError("Select a city to continue with Augmont onboarding.");
+    if (!onboardingForm.userPincode.trim()) {
+      setSetupError("Pincode is required for Augmont onboarding.");
+      return;
+    }
+
+    if (!trimmedAccountNumber || !trimmedAccountName || !trimmedIfscCode) {
+      setSetupError("Bank account number, account name, and IFSC are required.");
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setSetupError("Address is required so the wrapper can create the saved address.");
       return;
     }
 
@@ -345,50 +357,168 @@ export default function Products() {
     setSetupLoading(true);
     setSetupError("");
     setCreatedAugmontUser(null);
+    setAugmontAddresses([]);
+    setAugmontKycProfile(null);
 
-    const nextUniqueId = appProfile?.uniqueId || `AUG-${Date.now()}`;
-    const response = await createGoldUser({
-      mobileNumber: appProfile.mobileNumber,
-      emailId: appProfile.email,
+    const nextUniqueId = uniqueId || buildGeneratedUniqueId();
+    const userRequest = {
+      mobileNumber: onboardingForm.mobileNumber || appProfile?.mobileNumber || "9999999999",
+      emailId: onboardingForm.emailId || appProfile?.email || "user@example.com",
       uniqueId: nextUniqueId,
-      userName: appProfile.fullName,
-      cityId: selectedCityId,
-      stateId: selectedStateId,
-      userPincode: appProfile.pinCode
-    });
+      userName: onboardingForm.userName || appProfile?.fullName || "Augmont User",
+      stateName: trimmedStateName,
+      cityName: trimmedCityName,
+      userPincode: onboardingForm.userPincode || appProfile?.pinCode || "500001"
+    };
+    const createResponse = onboardingReady
+      ? await updateAugmontUser({
+          merchantId: sessionMerchantId,
+          uniqueId: nextUniqueId,
+          request: userRequest
+        })
+      : await createAugmontUser(userRequest, sessionMerchantId);
 
-    setSetupLoading(false);
-
-    if (!response?.ok) {
-      setSetupError(response?.message || "Unable to create Augmont user");
+    if (!createResponse?.ok) {
+      setSetupLoading(false);
+      setSetupError(
+        createResponse?.message ||
+          (onboardingReady ? "Unable to update Augmont user" : "Unable to create Augmont user")
+      );
       return;
     }
 
-    const profile = normalizeAugmontUserProfile(response.data, nextUniqueId);
+    const profileResponse = await fetchAugmontUserProfile(nextUniqueId);
+
+    if (!profileResponse?.ok) {
+      setSetupLoading(false);
+      setSetupError(profileResponse?.message || "User created, but profile lookup failed.");
+      return;
+    }
+
+    const bankResponse = await createAugmontUserBank({
+      merchantId: sessionMerchantId,
+      uniqueId: nextUniqueId,
+      request: {
+        accountNumber: trimmedAccountNumber,
+        accountName: trimmedAccountName,
+        ifscCode: trimmedIfscCode
+      }
+    });
+
+    if (!bankResponse?.ok) {
+      setSetupLoading(false);
+      setSetupError(bankResponse?.message || "User created, but bank creation failed.");
+      return;
+    }
+
+    const addressCreateResponse = await createAugmontAddress({
+      merchantId: sessionMerchantId,
+      uniqueId: nextUniqueId,
+      request: {
+        address: trimmedAddress
+      }
+    });
+
+    if (!addressCreateResponse?.ok) {
+      setSetupLoading(false);
+      setSetupError(
+        addressCreateResponse?.message || "User and bank created, but address creation failed."
+      );
+      return;
+    }
+
+    const addressesResponse = await fetchAugmontAddresses(nextUniqueId, sessionMerchantId);
+    const nextAddresses = addressesResponse?.ok ? addressesResponse.addresses || [] : [];
+
+    let nextKycProfile = null;
+    if (onboardingForm.kycPayload.trim()) {
+      let parsedKycPayload = null;
+
+      try {
+        parsedKycPayload = JSON.parse(onboardingForm.kycPayload);
+      } catch {
+        setSetupLoading(false);
+        setSetupError("KYC payload must be valid JSON when provided.");
+        return;
+      }
+
+      const kycUpdateResponse = await updateAugmontKyc({
+        merchantId: sessionMerchantId,
+        uniqueId: nextUniqueId,
+        request: parsedKycPayload
+      });
+
+      if (!kycUpdateResponse?.ok) {
+        setSetupLoading(false);
+        setSetupError(kycUpdateResponse?.message || "KYC update failed.");
+        return;
+      }
+    }
+
+    const kycProfileResponse = await fetchAugmontKycProfile(nextUniqueId, sessionMerchantId);
+    if (kycProfileResponse?.ok) {
+      nextKycProfile = kycProfileResponse.kycProfile || null;
+    }
+
+    setSetupLoading(false);
+
+    const profile = normalizeAugmontUserProfile(profileResponse.profile, nextUniqueId);
     const persistedProfile = {
-      userName: profile.userName || appProfile?.fullName || "",
+      userName:
+        profile.userName ||
+        onboardingForm.userName ||
+        appProfile?.fullName ||
+        "Augmont User",
       uniqueId: String(profile.uniqueId || nextUniqueId),
       customerMappedId: String(profile.customerMappedId || ""),
-      mobileNumber: profile.mobileNumber || appProfile?.mobileNumber || "",
-      userEmail: profile.userEmail || appProfile?.email || "",
-      userStateId: String(profile.userStateId || selectedStateId),
-      userCityId: String(profile.userCityId || selectedCityId),
-      userPincode: profile.userPincode || appProfile?.pinCode || "",
-      kycStatus: profile.kycStatus || "",
-      userState:
+      mobileNumber:
+        profile.mobileNumber ||
+        onboardingForm.mobileNumber ||
+        appProfile?.mobileNumber ||
+        "",
+      userEmail:
+        profile.userEmail ||
+        onboardingForm.emailId ||
+        appProfile?.email ||
+        "",
+      emailId:
+        profile.userEmail ||
+        onboardingForm.emailId ||
+        appProfile?.email ||
+        "",
+      userStateId: String(profile.userStateId || ""),
+      userCityId: String(profile.userCityId || ""),
+      userPincode:
+        profile.userPincode ||
+        onboardingForm.userPincode ||
+        appProfile?.pinCode ||
+        "500001",
+      kycStatus:
+        profile.kycStatus ||
+        nextKycProfile?.kycStatus ||
+        nextKycProfile?.status ||
+        "",
+      stateName:
+        profile.stateName ||
         profile.userState ||
-        augmontStates.find((item) => item.id === selectedStateId)?.name ||
-        "",
-      userCity:
+        trimmedStateName,
+      cityName:
+        profile.cityName ||
         profile.userCity ||
-        augmontCities.find((item) => item.id === selectedCityId)?.name ||
-        "",
+        trimmedCityName,
+      userState:
+        profile.userState || profile.stateName || trimmedStateName,
+      userCity:
+        profile.userCity || profile.cityName || trimmedCityName,
       createdAt: profile.createdAt || "",
       userBankId: profile.userBankId || "",
-      userAddressId: profile.userAddressId || ""
+      userAddressId: profile.userAddressId || "",
+      profileCompleted: true
     };
 
     setCreatedAugmontUser(persistedProfile);
+    setAugmontAddresses(nextAddresses);
+    setAugmontKycProfile(nextKycProfile);
     setResolvedAugmontUniqueId(persistedProfile.uniqueId);
     setAugmontUser(persistedProfile);
     setUserProfile({
@@ -401,8 +531,8 @@ export default function Products() {
       customerMappedId: persistedProfile.customerMappedId,
       augmontStateId: persistedProfile.userStateId,
       augmontCityId: persistedProfile.userCityId,
-      augmontState: persistedProfile.userState,
-      augmontCity: persistedProfile.userCity,
+      augmontState: persistedProfile.stateName || persistedProfile.userState,
+      augmontCity: persistedProfile.cityName || persistedProfile.userCity,
       augmontKycStatus: persistedProfile.kycStatus,
       augmontCreatedAt: persistedProfile.createdAt
     });
@@ -574,7 +704,7 @@ export default function Products() {
                   {selectedAugmontProduct.name}
                 </h3>
                 <p className="mt-2 text-sm text-white/55">
-                  Complete the master data and user creation flow first. Once the Augmont user is ready, this same modal unlocks the backend-driven buy order step using the stored `uniqueId`.
+                  Complete the wrapper onboarding flow here. The frontend stays on app auth for login, then uses goldplatform wrapper APIs only for Augmont user, bank, address, and KYC profile setup.
                 </p>
               </div>
 
@@ -583,6 +713,8 @@ export default function Products() {
                   setSelectedAugmontProduct(null);
                   setCreatedAugmontUser(null);
                   setAugmontBuyOrder(null);
+                  setAugmontAddresses([]);
+                  setAugmontKycProfile(null);
                   setSetupError("");
                   setBuyError("");
                 }}
@@ -599,7 +731,7 @@ export default function Products() {
                     Required onboarding flow
                   </p>
                   <p className="mt-2 text-xs text-white/60">
-                    {"master/states -> master/cities -> users/create"}
+                    {"users/create -> users/profile -> users/banks/create -> users/addresses/create -> users/addresses/list -> users/kyc/profile"}
                   </p>
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -619,95 +751,179 @@ export default function Products() {
 
                   {!onboardingReady ? (
                     <div className="mt-4 space-y-4">
-                      <div className="rounded-xl border border-white/10 bg-[#111] p-4 text-sm text-white/70">
-                        <p className="font-medium text-white">Step 1: Fetch states</p>
-                        <p className="mt-2 text-xs text-white/60">
-                          The state dropdown uses `payload.result.data` from `master/states`.
-                        </p>
-                        <div className="mt-3 flex items-center justify-between gap-3">
-                          <p className="text-xs text-white/50">
-                            {statesLoading
-                              ? "Loading states..."
-                              : augmontStates.length > 0
-                                ? `${augmontStates.length} states loaded`
-                                : "No states loaded yet"}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={loadAugmontStates}
-                            disabled={statesLoading}
-                            className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/75 transition hover:border-cyan-400/30 hover:text-white disabled:opacity-50"
-                          >
-                            {statesLoading ? "Loading..." : "Retry States"}
-                          </button>
-                        </div>
-                      </div>
-
                       <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Step 2: Select state</span>
-                        <select
-                          value={selectedStateId}
-                          onChange={(event) => {
-                            setSelectedStateId(event.target.value);
-                            setSelectedCityId("");
-                            setAugmontCities([]);
-                          }}
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          disabled={statesLoading}
-                        >
-                          <option value="">Select state</option>
-                          {augmontStates.map((state) => (
-                            <option key={state.id} value={state.id}>
-                              {state.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">User name</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.userName}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                userName: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
 
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Step 3: Select city</span>
-                        <select
-                          value={selectedCityId}
-                          onChange={(event) => setSelectedCityId(event.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          disabled={!selectedStateId || citiesLoading}
-                        >
-                          <option value="">Select city</option>
-                          {augmontCities.map((city) => (
-                            <option key={city.id} value={city.id}>
-                              {city.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">Mobile number</span>
+                          <input
+                            type="tel"
+                            value={onboardingForm.mobileNumber}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                mobileNumber: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
 
-                      <div className="sm:col-span-2 rounded-xl border border-white/10 bg-[#111] p-4 text-sm text-white/70">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-white">City master data</p>
-                            <p className="mt-2 text-xs text-white/60">
-                              Cities are requested only after state selection, and the city selection resets whenever the state changes.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => loadAugmontCities(selectedStateId)}
-                            disabled={!selectedStateId || citiesLoading}
-                            className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/75 transition hover:border-cyan-400/30 hover:text-white disabled:opacity-50"
-                          >
-                            {citiesLoading ? "Loading..." : "Retry Cities"}
-                          </button>
-                        </div>
-                        <p className="mt-3 text-xs text-white/50">
-                          {!selectedStateId
-                            ? "Select a state first to enable the city dropdown."
-                            : augmontCities.length > 0
-                              ? `${augmontCities.length} cities loaded`
-                              : "No cities returned yet for the selected state."}
-                        </p>
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">Email</span>
+                          <input
+                            type="email"
+                            value={onboardingForm.emailId}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                emailId: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">Pincode</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.userPincode}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                userPincode: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">State name</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.stateName}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                stateName: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                            placeholder="Telangana"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">City name</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.cityName}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                cityName: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                            placeholder="Hyderabad"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">Bank account name</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.accountName}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                accountName: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-sm text-white/60">Bank account number</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.accountNumber}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                accountNumber: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
+
+                        <label className="block sm:col-span-2">
+                          <span className="mb-2 block text-sm text-white/60">IFSC code</span>
+                          <input
+                            type="text"
+                            value={onboardingForm.ifscCode}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                ifscCode: event.target.value
+                              }))
+                            }
+                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                          />
+                        </label>
+
+                        <label className="block sm:col-span-2">
+                          <span className="mb-2 block text-sm text-white/60">Address</span>
+                          <textarea
+                            value={onboardingForm.address}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                address: event.target.value
+                              }))
+                            }
+                            className="min-h-[96px] w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
+                            placeholder="Flat 101, Test Residency, Hyderabad"
+                          />
+                        </label>
+
+                        <label className="block sm:col-span-2">
+                          <span className="mb-2 block text-sm text-white/60">
+                            Optional KYC JSON payload
+                          </span>
+                          <textarea
+                            value={onboardingForm.kycPayload}
+                            onChange={(event) =>
+                              setOnboardingForm((current) => ({
+                                ...current,
+                                kycPayload: event.target.value
+                              }))
+                            }
+                            className="min-h-[120px] w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 font-mono text-sm outline-none"
+                            placeholder='{"panNumber":"ABCDE1234F"}'
+                          />
+                          <p className="mt-2 text-xs text-white/45">
+                            Use the current wrapper contract fields here if KYC update is needed.
+                          </p>
+                        </label>
                       </div>
-                    </div>
                     </div>
                   ) : null}
 
@@ -807,14 +1023,14 @@ export default function Products() {
 
                 <button
                   onClick={handleCreateAugmontUser}
-                  disabled={onboardingReady || setupLoading || statesLoading || citiesLoading || buyLoading}
+                  disabled={setupLoading || buyLoading}
                   className="w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {setupLoading
-                    ? "Creating Augmont User..."
+                    ? "Running Wrapper Onboarding..."
                     : onboardingReady
-                      ? "Augmont User Ready"
-                      : "Create Augmont User"}
+                      ? "Re-run Wrapper Onboarding"
+                      : "Run Wrapper Onboarding"}
                 </button>
               </div>
 
@@ -830,7 +1046,7 @@ export default function Products() {
 
                 {!onboardingReady ? (
                   <div className="mt-6 rounded-xl border border-dashed border-white/10 p-6 text-sm text-white/45">
-                    Complete the state, city, and user creation steps to see the Augmont onboarding response here.
+                    Complete the wrapper onboarding form to see Augmont profile, KYC, and address data here.
                   </div>
                 ) : augmontBuyOrder ? (
                   <div className="mt-6 space-y-3">
@@ -961,13 +1177,13 @@ export default function Products() {
                       <div className="rounded-xl bg-[#111] p-3">
                         <p className="text-xs text-white/45">State</p>
                         <p className="mt-1 text-sm font-medium text-white">
-                          {onboardingProfile?.userState || "NA"}
+                          {onboardingProfile?.stateName || onboardingProfile?.userState || "NA"}
                         </p>
                       </div>
                       <div className="rounded-xl bg-[#111] p-3">
                         <p className="text-xs text-white/45">City</p>
                         <p className="mt-1 text-sm font-medium text-white">
-                          {onboardingProfile?.userCity || "NA"}
+                          {onboardingProfile?.cityName || onboardingProfile?.userCity || "NA"}
                         </p>
                       </div>
                       <div className="rounded-xl bg-[#111] p-3">
@@ -999,8 +1215,30 @@ export default function Products() {
                     <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                       <p className="text-sm font-semibold text-cyan-200">What is done</p>
                       <p className="mt-2 text-sm text-white/75">
-                        The frontend has fetched states, fetched cities for the selected state, created the Augmont user through the backend wrapper, and stored the returned `uniqueId`, `customerMappedId`, and city/state details for later provider APIs.
+                        The frontend has created the Augmont user, fetched the linked profile, created the bank record, created an address, fetched saved addresses, and loaded the KYC profile using wrapper APIs only.
                       </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#111] p-4">
+                      <p className="text-sm font-semibold text-white">Saved addresses</p>
+                      <div className="mt-3 space-y-2 text-sm text-white/70">
+                        {augmontAddresses.length === 0 ? (
+                          <p>No saved addresses returned yet.</p>
+                        ) : (
+                          augmontAddresses.map((address, index) => (
+                            <div key={`${address?.id || address?.addressId || index}`} className="rounded-lg border border-white/10 p-3">
+                              <p>{address?.address || address?.fullAddress || "Saved address"}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#111] p-4">
+                      <p className="text-sm font-semibold text-white">KYC profile</p>
+                      <pre className="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs text-white/60">
+                        {JSON.stringify(augmontKycProfile || {}, null, 2)}
+                      </pre>
                     </div>
                   </div>
                 )}

@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
+import { getUserProfile } from "../api/authApi";
 
 export default function Settings() {
+  const userProfile = useMemo(() => getUserProfile() || {}, []);
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [notifications, setNotifications] = useState(true);
+
+  const displayEmail = userProfile?.email || "No email available";
+  const displayPhone = userProfile?.mobileNumber || "No phone available";
+  const kycStatus = userProfile?.augmontKycStatus || "Pending";
+  const isKycVerified = /verified|approved|completed/i.test(kycStatus);
 
   const handlePasswordUpdate = () => {
     if (!password || !newPassword) {
@@ -12,7 +19,7 @@ export default function Settings() {
       return;
     }
 
-    alert("Password updated successfully ✅");
+    alert("Password updated successfully.");
     setPassword("");
     setNewPassword("");
   };
@@ -24,7 +31,6 @@ export default function Settings() {
       <div className="pt-28 px-6 max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
 
-        {/* PASSWORD SECTION */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Change Password</h2>
 
@@ -54,7 +60,6 @@ export default function Settings() {
           </button>
         </div>
 
-        {/* NOTIFICATIONS */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold">Notifications</h2>
@@ -75,13 +80,14 @@ export default function Settings() {
           </button>
         </div>
 
-        {/* ACCOUNT INFO */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-3">Account Info</h2>
 
-          <p className="text-white/70">Email: rahul@email.com</p>
-          <p className="text-white/70">Phone: +91 98765 43210</p>
-          <p className="text-green-400 mt-2">KYC Verified ✔</p>
+          <p className="text-white/70">Email: {displayEmail}</p>
+          <p className="text-white/70">Phone: {displayPhone}</p>
+          <p className={`mt-2 ${isKycVerified ? "text-green-400" : "text-yellow-300"}`}>
+            KYC Status: {kycStatus}
+          </p>
         </div>
       </div>
     </div>

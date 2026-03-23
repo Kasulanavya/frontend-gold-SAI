@@ -3,12 +3,6 @@ const BASE_URL =
   "https://uatbckend.karatly.net";
 const DEFAULT_MERCHANT_ID =
   import.meta.env.VITE_AUGMONT_MERCHANT_ID?.trim() || "11692";
-const AUGMONT_LOGIN_EMAIL =
-  import.meta.env.VITE_AUGMONT_LOGIN_EMAIL?.trim() || "";
-const AUGMONT_LOGIN_PASSWORD =
-  import.meta.env.VITE_AUGMONT_LOGIN_PASSWORD?.trim() || "";
-const AUGMONT_PRODUCTS_TOKEN =
-  import.meta.env.VITE_AUGMONT_PRODUCTS_TOKEN?.trim() || "";
 const AUGMONT_SESSION_KEY = "augmontSession";
 const LIVE_GOLD_RATE_HISTORY_KEY = "liveGoldRateHistory";
 const LIVE_GOLD_RATE_HISTORY_LIMIT = 12;
@@ -47,42 +41,12 @@ const extractBackendMessage = (data, fallback = "Request failed") => {
   return payloadMessage || data?.message || fallback;
 };
 
-const requestAugmontWrapperEndpoint = async (path, body = {}, fallbackMessage = "Request failed") => {
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        merchantId: body?.merchantId || DEFAULT_MERCHANT_ID,
-        ...body
-      })
-    });
-
-    const data = await getJson(res);
-
-    if (!res.ok || data?.status === "error") {
-      return {
-        ok: false,
-        message: extractBackendMessage(data, fallbackMessage),
-        raw: data
-      };
-    }
-
-    return {
-      ok: true,
-      data,
-      raw: data
-    };
-  } catch (error) {
-    console.error("AUGMONT WRAPPER API ERROR:", error);
-    return {
-      ok: false,
-      message: fallbackMessage
-    };
-  }
-};
+const extractStatusCode = (data) =>
+  data?.payload?.statusCode ||
+  data?.statusCode ||
+  data?.code ||
+  data?.payload?.code ||
+  "";
 
 const getStoredAugmontUser = () => {
   try {
@@ -154,8 +118,11 @@ export const normalizeAugmontUserProfile = (data, fallbackUniqueId = "") => {
     customerMappedId: result?.customerMappedId || "",
     mobileNumber: result?.mobileNumber || result?.mobileNo || "",
     userEmail: result?.userEmail || result?.emailId || result?.email || "",
+    emailId: result?.userEmail || result?.emailId || result?.email || "",
     userStateId: result?.userStateId || result?.stateId || "",
     userCityId: result?.userCityId || result?.cityId || "",
+    stateName: result?.stateName || result?.userState || "",
+    cityName: result?.cityName || result?.userCity || "",
     userPincode:
       result?.userPincode || result?.pincode || result?.pinCode || "",
     kycStatus: result?.kycStatus || "",
@@ -164,6 +131,19 @@ export const normalizeAugmontUserProfile = (data, fallbackUniqueId = "") => {
     createdAt: result?.createdAt || "",
     userBankId: result?.userBankId || "",
     userAddressId: result?.userAddressId || "",
+    profileExists: Boolean(
+      Object.keys(result || {}).length ||
+      fallbackUniqueId
+    ),
+    profileCompleted: Boolean(
+      (result?.uniqueId ||
+        result?.userUniqueId ||
+        result?.customerUniqueId ||
+        fallbackUniqueId) &&
+        (result?.userName || result?.name) &&
+        (result?.mobileNumber || result?.mobileNo) &&
+        (result?.emailId || result?.email || result?.userEmail)
+    ),
     raw: result
   };
 };
@@ -563,14 +543,20 @@ const storeGoldRatePoint = (snapshot) => {
 export const getAugmontSession = () => {
   try {
     const raw = sessionStorage.getItem(AUGMONT_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.merchantId ? parsed : { merchantId: DEFAULT_MERCHANT_ID };
   } catch {
-    return null;
+    return { merchantId: DEFAULT_MERCHANT_ID };
   }
 };
 
 const setAugmontSession = (session) => {
-  sessionStorage.setItem(AUGMONT_SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(
+    AUGMONT_SESSION_KEY,
+    JSON.stringify({
+      merchantId: session?.merchantId || DEFAULT_MERCHANT_ID
+    })
+  );
 };
 
 export const clearAugmontSession = () => {
@@ -580,136 +566,101 @@ export const clearAugmontSession = () => {
 export const getAugmontUser = () => getStoredAugmontUser();
 export const setAugmontUser = (user) => setStoredAugmontUser(user);
 
-/* ---------------- AUTH ---------------- */
-
 export const loginUser = async (email, password) => {
-  const res = await fetch(`${BASE_URL}/api/v1/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ email, password })
-  });
-
-  return await getJson(res);
-};
-
-export const loginAugmont = async ({ force = false } = {}) => {
-  if (!force) {
-    const existingSession = getAugmontSession();
-
-    if (existingSession?.token && existingSession?.merchantId) {
-      return {
-        ok: true,
-        ...existingSession
-      };
-    }
-
-    if (AUGMONT_PRODUCTS_TOKEN) {
-      const tokenSession = {
-        token: AUGMONT_PRODUCTS_TOKEN,
-        merchantId: DEFAULT_MERCHANT_ID
-      };
-      setAugmontSession(tokenSession);
-      return {
-        ok: true,
-        ...tokenSession
-      };
-    }
-  }
-
-  if (!AUGMONT_LOGIN_EMAIL || !AUGMONT_LOGIN_PASSWORD) {
-    return {
-      ok: false,
-      message: "Augmont frontend login is not configured. Use the goldplatform wrapper session instead."
-    };
-  }
-
-  try {
-    clearAugmontSession();
-    const data = await loginUser(AUGMONT_LOGIN_EMAIL, AUGMONT_LOGIN_PASSWORD);
-    const session = extractAugmontSession(data);
-
-    if (!session.token || !session.merchantId) {
-      return {
-        ok: false,
-        message: extractBackendMessage(
-          data,
-          "Augmont login did not return token or merchantId"
-        )
-      };
-    }
-
-    setAugmontSession(session);
-
-    return {
-      ok: true,
-      ...session
-    };
-  } catch (error) {
-    console.error("AUGMONT LOGIN ERROR:", error);
-    return {
-      ok: false,
-      message: "Failed to log in to Augmont"
-    };
-  }
-};
-
-export const createUser = async (userData) => {
-  if (
-    !userData?.mobileNumber ||
-    !userData?.email ||
-    !userData?.name ||
-    !userData?.cityId ||
-    !userData?.stateId ||
-    !userData?.userPincode
-  ) {
-    return {
-      status: "error",
-      payload: {
-        message: "Missing required user creation fields"
-      }
-    };
-  }
-
-  const generatedUniqueId =
-    userData.uniqueId || `USER-${Date.now()}`;
-  const response = await requestAugmontWrapperEndpoint(
-    "/api/v1/users/create",
-    {
-      request: {
-        mobileNumber: userData.mobileNumber,
-        emailId: userData.email,
-        uniqueId: generatedUniqueId,
-        userName: userData.name,
-        cityId: userData.cityId,
-        stateId: userData.stateId,
-        userPincode: userData.userPincode
-      }
-    },
-    "Unable to create Augmont user"
-  );
-
-  if (response.ok) {
-    setStoredAugmontUser(extractAugmontUser(response.data, generatedUniqueId));
-    return response.data;
-  }
-
   return {
-    status: "error",
-    payload: {
-      message: response.message || "Unable to create Augmont user"
-    }
+    ok: true,
+    merchantId: DEFAULT_MERCHANT_ID,
+    message:
+      "Provider authentication is handled internally by the goldplatform wrapper."
   };
 };
 
-const requestAugmontUserEndpoint = async (path, body) => {
-  return requestAugmontWrapperEndpoint(path, body, "Failed to fetch backend data");
+export const loginAugmont = async ({ force = false } = {}) => {
+  const session = { merchantId: DEFAULT_MERCHANT_ID };
+  if (force) {
+    clearAugmontSession();
+  }
+  setAugmontSession(session);
+  return {
+    ok: true,
+    ...session,
+    message:
+      "Provider authentication is handled internally by the goldplatform wrapper."
+  };
 };
 
-const requestAugmontOrderEndpoint = async (path, body = {}) => {
-  return requestAugmontWrapperEndpoint(path, body, "Failed to complete order request");
+export const createUser = async (userData) => {
+  return createAugmontUser({
+    mobileNumber: userData?.mobileNumber || "9999999999",
+    emailId: userData?.email || userData?.emailId || "",
+    uniqueId: userData?.uniqueId || `USER-${Date.now()}`,
+    userName: userData?.name || userData?.userName || "Augmont User",
+    stateName: userData?.stateName || "",
+    cityName: userData?.cityName || "",
+    userPincode: userData?.userPincode || "500001"
+  });
 };
+
+const requestAugmontUserEndpoint = async (path, body) => {
+  return requestAugmontOrderEndpoint(path, body, "Failed to fetch backend data");
+};
+
+const requestAugmontOrderEndpoint = async (
+  path,
+  body = {},
+  fallbackMessage = "Failed to complete order request"
+) => {
+  try {
+    const resolvedMerchantId =
+      body?.merchantId || getAugmontSession()?.merchantId || DEFAULT_MERCHANT_ID;
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        merchantId: resolvedMerchantId,
+        ...body
+      })
+    });
+
+    const data = await getJson(res);
+    const statusCode = String(extractStatusCode(data) || "");
+    const isMinimalSuccess =
+      res.ok &&
+      (data?.status === "success" ||
+        !data?.status ||
+        statusCode.startsWith("2") ||
+        /success/i.test(data?.message || data?.payload?.message || ""));
+
+    if (!isMinimalSuccess) {
+      return {
+        ok: false,
+        message: extractBackendMessage(data, fallbackMessage),
+        raw: data
+      };
+    }
+
+    return {
+      ok: true,
+      statusCode,
+      data,
+      raw: data
+    };
+  } catch (error) {
+    console.error("AUGMONT ORDER API ERROR:", error);
+    return {
+      ok: false,
+      message: fallbackMessage
+    };
+  }
+};
+
+const requestAugmontWrapperEndpoint = async (
+  path,
+  body = {},
+  fallbackMessage = "Request failed"
+) => requestAugmontOrderEndpoint(path, body, fallbackMessage);
 
 export const fetchAugmontUserProfile = async (uniqueId) => {
   if (!uniqueId) {
@@ -730,11 +681,152 @@ export const fetchAugmontUserProfile = async (uniqueId) => {
   const result =
     response.data?.payload?.result?.data ||
     response.data?.payload?.result ||
+    response.data?.data ||
+    {};
+  const normalized = normalizeAugmontUserProfile(result, uniqueId);
+  setStoredAugmontUser(normalized);
+
+  return {
+    ok: true,
+    profile: normalized,
+    raw: response.raw
+  };
+};
+
+export const createAugmontUser = async (request, merchantId) => {
+  const response = await requestAugmontUserEndpoint(
+    "/api/v1/users/create",
+    {
+      merchantId: merchantId || DEFAULT_MERCHANT_ID,
+      request: {
+        mobileNumber: String(request?.mobileNumber || "").trim(),
+        emailId: String(request?.emailId || "").trim(),
+        uniqueId: String(request?.uniqueId || "").trim(),
+        userName: String(request?.userName || "").trim(),
+        stateName: String(request?.stateName || "").trim(),
+        cityName: String(request?.cityName || "").trim(),
+        userPincode: String(request?.userPincode || "").trim()
+      }
+    }
+  );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  return {
+    ok: true,
+    statusCode: response.statusCode,
+    message:
+      response.raw?.payload?.message ||
+      response.raw?.message ||
+      "Augmont user create request accepted",
+    raw: response.raw
+  };
+};
+
+export const updateAugmontUser = async ({ uniqueId, request, merchantId }) => {
+  return requestAugmontUserEndpoint("/api/v1/users/update", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim(),
+    request: {
+      mobileNumber: String(request?.mobileNumber || "").trim(),
+      emailId: String(request?.emailId || "").trim(),
+      userName: String(request?.userName || "").trim(),
+      stateName: String(request?.stateName || "").trim(),
+      cityName: String(request?.cityName || "").trim(),
+      userPincode: String(request?.userPincode || "").trim()
+    }
+  });
+};
+
+export const fetchAugmontKycProfile = async (uniqueId, merchantId) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  const response = await requestAugmontUserEndpoint("/api/v1/users/kyc/profile", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim()
+  });
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const result =
+    response.data?.payload?.result?.data ||
+    response.data?.payload?.result ||
+    response.data?.data ||
     {};
 
   return {
     ok: true,
-    profile: result,
+    kycProfile: result,
+    raw: response.raw
+  };
+};
+
+export const updateAugmontKyc = async ({ uniqueId, request, merchantId }) =>
+  requestAugmontUserEndpoint("/api/v1/users/kyc/update", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim(),
+    request: request || {}
+  });
+
+export const createAugmontUserBank = async ({ uniqueId, request, merchantId }) =>
+  requestAugmontUserEndpoint("/api/v1/users/banks/create", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim(),
+    request: {
+      accountNumber: String(request?.accountNumber || "").trim(),
+      accountName: String(request?.accountName || "").trim(),
+      ifscCode: String(request?.ifscCode || "").trim()
+    }
+  });
+
+export const createAugmontAddress = async ({ uniqueId, request, merchantId }) =>
+  requestAugmontUserEndpoint("/api/v1/users/addresses/create", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim(),
+    request: {
+      address: String(request?.address || "").trim()
+    }
+  });
+
+export const fetchAugmontAddresses = async (uniqueId, merchantId) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId",
+      addresses: []
+    };
+  }
+
+  const response = await requestAugmontUserEndpoint("/api/v1/users/addresses/list", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    uniqueId: String(uniqueId || "").trim()
+  });
+
+  if (!response.ok) {
+    return {
+      ...response,
+      addresses: []
+    };
+  }
+
+  const result =
+    response.data?.payload?.result?.data ||
+    response.data?.payload?.result ||
+    response.data?.data ||
+    [];
+
+  return {
+    ok: true,
+    addresses: Array.isArray(result) ? result : [],
     raw: response.raw
   };
 };
