@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import { getUserProfile } from "../api/authApi";
 import {
@@ -6,6 +6,7 @@ import {
   createAugmontTransferOrder,
   fetchAugmontFdSchemes,
   fetchAugmontPassbook,
+  fetchAugmontProducts,
   fetchAugmontProductDetail,
   fetchAugmontRedeemOrders,
   fetchAugmontTransferOrders,
@@ -29,6 +30,18 @@ import {
 } from "../api/safeGoldApi";
 
 const prettyJson = (value) => JSON.stringify(value || {}, null, 2);
+
+const formatDisplayValue = (value, fallback = "Not available") => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    return value.trim() || fallback;
+  }
+
+  return `${value}`;
+};
 
 const formatDateInputValue = (date) => {
   const normalized = new Date(date);
@@ -77,6 +90,9 @@ function Field({ label, children, hint }) {
 const inputClassName =
   "w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-400/50";
 
+const selectClassName =
+  "w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-400/50 [color-scheme:dark]";
+
 const actionButtonClassName =
   "rounded-xl border border-white/10 px-4 py-3 text-sm text-white transition hover:border-yellow-400/30 hover:bg-yellow-500/5 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -96,6 +112,10 @@ export default function GoldPlatformPage() {
   const [sku, setSku] = useState("");
   const [skuResult, setSkuResult] = useState({});
   const [skuLoading, setSkuLoading] = useState(false);
+  const [productOptions, setProductOptions] = useState([]);
+  const [productOptionsLoading, setProductOptionsLoading] = useState(false);
+  const [productOptionsError, setProductOptionsError] = useState("");
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   const [redeemSku, setRedeemSku] = useState("");
   const [redeemQuantity, setRedeemQuantity] = useState("1");
@@ -157,6 +177,67 @@ export default function GoldPlatformPage() {
     errorSetter("");
     setter({});
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProductOptions = async () => {
+      if (!merchantId) {
+        if (isMounted) {
+          setProductOptions([]);
+        }
+        return;
+      }
+
+      setProductOptionsLoading(true);
+      setProductOptionsError("");
+
+      const response = await fetchAugmontProducts(1, 100, merchantId);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setProductOptionsLoading(false);
+
+      if (!response?.ok) {
+        setProductOptions([]);
+        setProductOptionsError(response?.message || "Unable to load products.");
+        return;
+      }
+
+      setProductOptions(response.products || []);
+      setProductOptionsError("");
+    };
+
+    loadProductOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (!productOptions.length) {
+      return;
+    }
+
+    setSku((currentSku) => {
+      if (currentSku && productOptions.some((product) => product.sku === currentSku)) {
+        return currentSku;
+      }
+
+      return productOptions[0]?.sku || "";
+    });
+
+    setRedeemSku((currentSku) => {
+      if (currentSku && productOptions.some((product) => product.sku === currentSku)) {
+        return currentSku;
+      }
+
+      return productOptions[0]?.sku || "";
+    });
+  }, [productOptions]);
 
   const loadWorkspace = async () => {
     setWorkspaceLoading(true);
@@ -249,6 +330,7 @@ export default function GoldPlatformPage() {
     }
 
     setSkuResult(response.product || {});
+    setIsProductModalOpen(true);
   };
 
   const handleAugmontRedeem = async () => {
@@ -525,38 +607,77 @@ export default function GoldPlatformPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-              <input
-                value={sku}
-                onChange={(event) => setSku(event.target.value)}
-                placeholder="Augmont SKU"
-                className={inputClassName}
-              />
-              <button
-                type="button"
-                onClick={handleSkuLookup}
-                disabled={skuLoading}
-                className={actionButtonClassName}
-              >
-                {skuLoading ? "Fetching..." : "Fetch Product"}
-              </button>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="text-sm font-semibold text-white">Fetch Product</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Field
+                  label="Choose product"
+                  hint={productOptionsLoading ? "Loading products from Augmont..." : "Select a product instead of typing the SKU manually."}
+                >
+                  <select
+                    value={sku}
+                    onChange={(event) => setSku(event.target.value)}
+                    className={selectClassName}
+                    disabled={productOptionsLoading || !productOptions.length}
+                  >
+                    <option value="" className="bg-[#0b0b0b] text-white">
+                      {productOptionsLoading
+                        ? "Loading products..."
+                        : productOptions.length
+                          ? "Select a product"
+                          : "No products available"}
+                    </option>
+                    {productOptions.map((product) => (
+                      <option key={product.id} value={product.sku} className="bg-[#0b0b0b] text-white">
+                        {product.name} ({product.sku})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={handleSkuLookup}
+                    disabled={skuLoading || !sku}
+                    className={`${actionButtonClassName} w-full sm:w-auto`}
+                  >
+                    {skuLoading ? "Fetching..." : "Fetch Product"}
+                  </button>
+                </div>
+              </div>
+              {productOptionsError ? (
+                <p className="mt-3 text-xs text-red-200">{productOptionsError}</p>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm font-semibold text-white">Redeem Order</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Field label="SKU">
-                  <input value={redeemSku} onChange={(event) => setRedeemSku(event.target.value)} placeholder="Product SKU" className={inputClassName} />
+                  <select value={redeemSku} onChange={(event) => setRedeemSku(event.target.value)} className={selectClassName} disabled={productOptionsLoading || !productOptions.length}>
+                    <option value="" className="bg-[#0b0b0b] text-white">
+                      {productOptionsLoading
+                        ? "Loading products..."
+                        : productOptions.length
+                          ? "Select a product"
+                          : "No products available"}
+                    </option>
+                    {productOptions.map((product) => (
+                      <option key={`redeem-${product.id}`} value={product.sku} className="bg-[#0b0b0b] text-white">
+                        {product.name} ({product.sku})
+                      </option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Quantity">
                   <input value={redeemQuantity} onChange={(event) => setRedeemQuantity(event.target.value)} placeholder="1" className={inputClassName} />
                 </Field>
                 <Field label="Mode of payment">
-                  <select value={augmontRedeemMode} onChange={(event) => setAugmontRedeemMode(event.target.value)} className={inputClassName}>
-                    <option value="wallet">wallet</option>
-                    <option value="UPI">UPI</option>
-                    <option value="NET_BANKING">NET_BANKING</option>
-                    <option value="CARD">CARD</option>
+                  <select value={augmontRedeemMode} onChange={(event) => setAugmontRedeemMode(event.target.value)} className={selectClassName}>
+                    <option value="wallet" className="bg-[#0b0b0b] text-white">wallet</option>
+                    <option value="UPI" className="bg-[#0b0b0b] text-white">UPI</option>
+                    <option value="NET_BANKING" className="bg-[#0b0b0b] text-white">NET_BANKING</option>
+                    <option value="CARD" className="bg-[#0b0b0b] text-white">CARD</option>
                   </select>
                 </Field>
                 <div className="flex items-end">
@@ -577,9 +698,9 @@ export default function GoldPlatformPage() {
                   <input value={transferQuantity} onChange={(event) => setTransferQuantity(event.target.value)} placeholder="0.0100" className={inputClassName} />
                 </Field>
                 <Field label="Metal type">
-                  <select value={augmontTransferMetalType} onChange={(event) => setAugmontTransferMetalType(event.target.value)} className={inputClassName}>
-                    <option value="gold">gold</option>
-                    <option value="silver">silver</option>
+                  <select value={augmontTransferMetalType} onChange={(event) => setAugmontTransferMetalType(event.target.value)} className={selectClassName}>
+                    <option value="gold" className="bg-[#0b0b0b] text-white">gold</option>
+                    <option value="silver" className="bg-[#0b0b0b] text-white">silver</option>
                   </select>
                 </Field>
                 <div className="flex items-end">
@@ -597,7 +718,6 @@ export default function GoldPlatformPage() {
             ) : null}
 
             <JsonPanel title="Workspace Data" value={workspaceResult} />
-            <JsonPanel title="Product Detail" value={skuResult} />
             <JsonPanel title="Augmont Action Result" value={augmontActionResult} />
           </Card>
 
@@ -639,10 +759,10 @@ export default function GoldPlatformPage() {
                   <input type="date" value={historicalTo} onChange={(event) => setHistoricalTo(event.target.value)} className={inputClassName} />
                 </Field>
                 <Field label="Type">
-                  <select value={historicalType} onChange={(event) => setHistoricalType(event.target.value)} className={inputClassName}>
-                    <option value="d">d</option>
-                    <option value="w">w</option>
-                    <option value="m">m</option>
+                  <select value={historicalType} onChange={(event) => setHistoricalType(event.target.value)} className={selectClassName}>
+                    <option value="d" className="bg-[#0b0b0b] text-white">d</option>
+                    <option value="w" className="bg-[#0b0b0b] text-white">w</option>
+                    <option value="m" className="bg-[#0b0b0b] text-white">m</option>
                   </select>
                 </Field>
               </div>
@@ -743,11 +863,11 @@ export default function GoldPlatformPage() {
                   <input value={kycPanNo} onChange={(event) => setKycPanNo(event.target.value)} placeholder="PAN number" className={inputClassName} />
                 </Field>
                 <Field label="Identity type">
-                  <select value={kycIdentityType} onChange={(event) => setKycIdentityType(event.target.value)} className={inputClassName}>
-                    <option value="aadhaar">aadhaar</option>
-                    <option value="passport">passport</option>
-                    <option value="driving_license">driving_license</option>
-                    <option value="voter_id">voter_id</option>
+                  <select value={kycIdentityType} onChange={(event) => setKycIdentityType(event.target.value)} className={selectClassName}>
+                    <option value="aadhaar" className="bg-[#0b0b0b] text-white">aadhaar</option>
+                    <option value="passport" className="bg-[#0b0b0b] text-white">passport</option>
+                    <option value="driving_license" className="bg-[#0b0b0b] text-white">driving_license</option>
+                    <option value="voter_id" className="bg-[#0b0b0b] text-white">voter_id</option>
                   </select>
                 </Field>
                 <Field label="Identity value">
@@ -775,6 +895,60 @@ export default function GoldPlatformPage() {
           </Card>
         </div>
       </div>
+
+      {isProductModalOpen && skuResult?.sku ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-[2rem] border border-yellow-500/20 bg-[#111] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300">Product Detail</p>
+            <h3 className="mt-3 text-2xl font-semibold text-white">{formatDisplayValue(skuResult?.name, "Augmont Product")}</h3>
+            <p className="mt-2 text-sm text-white/60">
+              Product details fetched successfully. Review the information below, then tap OK to close.
+            </p>
+
+            <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                <span className="text-sm text-white/45">SKU</span>
+                <span className="text-right text-sm font-medium text-white">{formatDisplayValue(skuResult?.sku)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                <span className="text-sm text-white/45">Price</span>
+                <span className="text-right text-sm font-medium text-white">Rs. {formatDisplayValue(skuResult?.basePrice, "0")}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                <span className="text-sm text-white/45">Metal Type</span>
+                <span className="text-right text-sm font-medium capitalize text-white">{formatDisplayValue(skuResult?.metalType)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                <span className="text-sm text-white/45">Purity</span>
+                <span className="text-right text-sm font-medium text-white">{formatDisplayValue(skuResult?.purity)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                <span className="text-sm text-white/45">Product Weight</span>
+                <span className="text-right text-sm font-medium text-white">{formatDisplayValue(skuResult?.productWeight)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-sm text-white/45">Status</span>
+                <span className="text-right text-sm font-medium capitalize text-white">{formatDisplayValue(skuResult?.status)}</span>
+              </div>
+            </div>
+
+            {skuResult?.description ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-sm text-white/45">Description</p>
+                <p className="mt-2 text-sm leading-6 text-white/75">{skuResult.description}</p>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setIsProductModalOpen(false)}
+              className="mt-6 w-full rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
