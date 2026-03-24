@@ -9,6 +9,7 @@ import { getUserProfile, setUserProfile } from "../api/authApi";
 import {
   createAugmontAddress,
   createAugmontBuyOrder,
+  fetchAugmontUserProfile,
   createAugmontUser,
   createAugmontUserBank,
   fetchAugmontAddresses,
@@ -253,7 +254,7 @@ export default function Products() {
         userName:
           augmontUser?.userName ||
           appProfile?.fullName ||
-          "Augmont User",
+          "",
         mobileNumber:
           augmontUser?.mobileNumber ||
           appProfile?.mobileNumber ||
@@ -275,7 +276,7 @@ export default function Products() {
         userPincode:
           augmontUser?.userPincode ||
           appProfile?.pinCode ||
-          "500001",
+          "",
         accountName:
           augmontUser?.userName ||
           appProfile?.fullName ||
@@ -362,13 +363,13 @@ export default function Products() {
 
     const nextUniqueId = uniqueId || buildGeneratedUniqueId();
     const userRequest = {
-      mobileNumber: onboardingForm.mobileNumber || appProfile?.mobileNumber || "9999999999",
-      emailId: onboardingForm.emailId || appProfile?.email || "user@example.com",
+      mobileNumber: onboardingForm.mobileNumber || appProfile?.mobileNumber || "",
+      emailId: onboardingForm.emailId || appProfile?.email || "",
       uniqueId: nextUniqueId,
-      userName: onboardingForm.userName || appProfile?.fullName || "Augmont User",
+      userName: onboardingForm.userName || appProfile?.fullName || "",
       stateName: trimmedStateName,
       cityName: trimmedCityName,
-      userPincode: onboardingForm.userPincode || appProfile?.pinCode || "500001"
+      userPincode: onboardingForm.userPincode || appProfile?.pinCode || ""
     };
     const createResponse = onboardingReady
       ? await updateAugmontUser({
@@ -461,14 +462,13 @@ export default function Products() {
     }
 
     setSetupLoading(false);
-
     const profile = normalizeAugmontUserProfile(profileResponse.profile, nextUniqueId);
     const persistedProfile = {
       userName:
         profile.userName ||
         onboardingForm.userName ||
         appProfile?.fullName ||
-        "Augmont User",
+        "",
       uniqueId: String(profile.uniqueId || nextUniqueId),
       customerMappedId: String(profile.customerMappedId || ""),
       mobileNumber:
@@ -492,7 +492,7 @@ export default function Products() {
         profile.userPincode ||
         onboardingForm.userPincode ||
         appProfile?.pinCode ||
-        "500001",
+        "",
       kycStatus:
         profile.kycStatus ||
         nextKycProfile?.kycStatus ||

@@ -212,49 +212,6 @@ const normalizePagination = (pagination = {}) => ({
   current_page: Number(pagination?.current_page || 1)
 });
 
-const extractAugmontSession = (data) => {
-  const token =
-    data?.token ||
-    data?.accessToken ||
-    data?.payload?.token ||
-    data?.payload?.accessToken ||
-    data?.payload?.result?.token ||
-    data?.payload?.result?.accessToken ||
-    data?.payload?.result?.data?.token ||
-    data?.payload?.result?.data?.accessToken;
-  const merchantId =
-    data?.merchantId ||
-    data?.payload?.merchantId ||
-    data?.payload?.result?.merchantId ||
-    data?.payload?.result?.data?.merchantId;
-
-  return {
-    token: token ? String(token) : "",
-    merchantId: merchantId ? String(merchantId) : DEFAULT_MERCHANT_ID
-  };
-};
-
-const extractAugmontUser = (data, fallbackUniqueId = "") => {
-  const result = normalizeAugmontUserProfile(data, fallbackUniqueId);
-
-  return {
-    userName: result?.userName || "",
-    uniqueId: result?.uniqueId || data?.uniqueId || fallbackUniqueId,
-    customerMappedId: result?.customerMappedId || "",
-    mobileNumber: result?.mobileNumber || "",
-    userEmail: result?.userEmail || "",
-    userStateId: result?.userStateId || "",
-    userCityId: result?.userCityId || "",
-    userPincode: result?.userPincode || "",
-    kycStatus: result?.kycStatus || "",
-    userState: result?.userState || "",
-    userCity: result?.userCity || "",
-    createdAt: result?.createdAt || "",
-    userBankId: result?.userBankId || "",
-    userAddressId: result?.userAddressId || ""
-  };
-};
-
 const findRateValue = (container = {}, keys = []) =>
   pickFirstPositiveNumber(...keys.map((key) => container?.[key]));
 
@@ -566,14 +523,12 @@ export const clearAugmontSession = () => {
 export const getAugmontUser = () => getStoredAugmontUser();
 export const setAugmontUser = (user) => setStoredAugmontUser(user);
 
-export const loginUser = async (email, password) => {
-  return {
-    ok: true,
-    merchantId: DEFAULT_MERCHANT_ID,
-    message:
-      "Provider authentication is handled internally by the goldplatform wrapper."
-  };
-};
+export const loginUser = async () => ({
+  ok: true,
+  merchantId: DEFAULT_MERCHANT_ID,
+  message:
+    "Provider authentication is handled internally by the goldplatform wrapper."
+});
 
 export const loginAugmont = async ({ force = false } = {}) => {
   const session = { merchantId: DEFAULT_MERCHANT_ID };
@@ -589,21 +544,22 @@ export const loginAugmont = async ({ force = false } = {}) => {
   };
 };
 
-export const createUser = async (userData) => {
-  return createAugmontUser({
-    mobileNumber: userData?.mobileNumber || "9999999999",
-    emailId: userData?.email || userData?.emailId || "",
-    uniqueId: userData?.uniqueId || `USER-${Date.now()}`,
-    userName: userData?.name || userData?.userName || "Augmont User",
-    stateName: userData?.stateName || "",
-    cityName: userData?.cityName || "",
-    userPincode: userData?.userPincode || "500001"
-  });
-};
+export const createUser = async (userData) =>
+  createAugmontUser(
+    {
+      mobileNumber: userData?.mobileNumber || "",
+      emailId: userData?.email || userData?.emailId || "",
+      uniqueId: userData?.uniqueId || `USER-${Date.now()}`,
+      userName: userData?.name || userData?.userName || "",
+      stateName: userData?.stateName || "",
+      cityName: userData?.cityName || "",
+      userPincode: userData?.userPincode || ""
+    },
+    userData?.merchantId
+  );
 
-const requestAugmontUserEndpoint = async (path, body) => {
-  return requestAugmontOrderEndpoint(path, body, "Failed to fetch backend data");
-};
+const requestAugmontUserEndpoint = async (path, body) =>
+  requestAugmontOrderEndpoint(path, body, "Failed to fetch backend data");
 
 const requestAugmontOrderEndpoint = async (
   path,
@@ -694,21 +650,33 @@ export const fetchAugmontUserProfile = async (uniqueId) => {
 };
 
 export const createAugmontUser = async (request, merchantId) => {
-  const response = await requestAugmontUserEndpoint(
-    "/api/v1/users/create",
-    {
-      merchantId: merchantId || DEFAULT_MERCHANT_ID,
-      request: {
-        mobileNumber: String(request?.mobileNumber || "").trim(),
-        emailId: String(request?.emailId || "").trim(),
-        uniqueId: String(request?.uniqueId || "").trim(),
-        userName: String(request?.userName || "").trim(),
-        stateName: String(request?.stateName || "").trim(),
-        cityName: String(request?.cityName || "").trim(),
-        userPincode: String(request?.userPincode || "").trim()
-      }
+  if (
+    !request?.mobileNumber ||
+    !request?.emailId ||
+    !request?.uniqueId ||
+    !request?.userName ||
+    !request?.stateName ||
+    !request?.cityName ||
+    !request?.userPincode
+  ) {
+    return {
+      ok: false,
+      message: "Missing required Augmont user fields"
+    };
+  }
+
+  const response = await requestAugmontUserEndpoint("/api/v1/users/create", {
+    merchantId: merchantId || DEFAULT_MERCHANT_ID,
+    request: {
+      mobileNumber: String(request?.mobileNumber || "").trim(),
+      emailId: String(request?.emailId || "").trim(),
+      uniqueId: String(request?.uniqueId || "").trim(),
+      userName: String(request?.userName || "").trim(),
+      stateName: String(request?.stateName || "").trim(),
+      cityName: String(request?.cityName || "").trim(),
+      userPincode: String(request?.userPincode || "").trim()
     }
-  );
+  });
 
   if (!response.ok) {
     return response;
@@ -725,8 +693,8 @@ export const createAugmontUser = async (request, merchantId) => {
   };
 };
 
-export const updateAugmontUser = async ({ uniqueId, request, merchantId }) => {
-  return requestAugmontUserEndpoint("/api/v1/users/update", {
+export const updateAugmontUser = async ({ uniqueId, request, merchantId }) =>
+  requestAugmontUserEndpoint("/api/v1/users/update", {
     merchantId: merchantId || DEFAULT_MERCHANT_ID,
     uniqueId: String(uniqueId || "").trim(),
     request: {
@@ -738,7 +706,6 @@ export const updateAugmontUser = async ({ uniqueId, request, merchantId }) => {
       userPincode: String(request?.userPincode || "").trim()
     }
   });
-};
 
 export const fetchAugmontKycProfile = async (uniqueId, merchantId) => {
   if (!uniqueId) {
