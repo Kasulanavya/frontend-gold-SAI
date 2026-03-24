@@ -660,8 +660,8 @@ export const createUser = async (userData) => {
     !userData?.mobileNumber ||
     !userData?.email ||
     !userData?.name ||
-    !userData?.cityId ||
-    !userData?.stateId ||
+    !userData?.cityName ||
+    !userData?.stateName ||
     !userData?.userPincode
   ) {
     return {
@@ -682,8 +682,8 @@ export const createUser = async (userData) => {
         emailId: userData.email,
         uniqueId: generatedUniqueId,
         userName: userData.name,
-        cityId: userData.cityId,
-        stateId: userData.stateId,
+        cityName: userData.cityName,
+        stateName: userData.stateName,
         userPincode: userData.userPincode
       }
     },
@@ -691,8 +691,18 @@ export const createUser = async (userData) => {
   );
 
   if (response.ok) {
-    setStoredAugmontUser(extractAugmontUser(response.data, generatedUniqueId));
-    return response.data;
+    const profileResponse = await fetchAugmontUserProfile(generatedUniqueId);
+
+    if (profileResponse?.ok) {
+      setStoredAugmontUser(
+        extractAugmontUser(profileResponse.profile, generatedUniqueId)
+      );
+    }
+
+    return {
+      ...response.data,
+      profile: profileResponse?.ok ? profileResponse.profile : {}
+    };
   }
 
   return {
@@ -700,6 +710,166 @@ export const createUser = async (userData) => {
     payload: {
       message: response.message || "Unable to create Augmont user"
     }
+  };
+};
+
+export const updateAugmontUser = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId,
+  request = {}
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  return requestAugmontWrapperEndpoint(
+    "/api/v1/users/update",
+    {
+      merchantId,
+      uniqueId,
+      request
+    },
+    "Unable to update Augmont user"
+  );
+};
+
+export const fetchAugmontKycProfile = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  const response = await requestAugmontWrapperEndpoint(
+    "/api/v1/users/kyc/profile",
+    {
+      merchantId,
+      uniqueId
+    },
+    "Unable to fetch Augmont KYC profile"
+  );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  return {
+    ok: true,
+    profile: extractOrderResult(response.data),
+    raw: response.raw
+  };
+};
+
+export const updateAugmontKyc = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId,
+  request = {}
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  return requestAugmontWrapperEndpoint(
+    "/api/v1/users/kyc/update",
+    {
+      merchantId,
+      uniqueId,
+      request
+    },
+    "Unable to update Augmont KYC"
+  );
+};
+
+export const createAugmontUserBank = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId,
+  request = {}
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  return requestAugmontWrapperEndpoint(
+    "/api/v1/users/banks/create",
+    {
+      merchantId,
+      uniqueId,
+      request
+    },
+    "Unable to create Augmont bank"
+  );
+};
+
+export const createAugmontUserAddress = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId,
+  request = {}
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId"
+    };
+  }
+
+  return requestAugmontWrapperEndpoint(
+    "/api/v1/users/addresses/create",
+    {
+      merchantId,
+      uniqueId,
+      request
+    },
+    "Unable to create Augmont address"
+  );
+};
+
+export const fetchAugmontUserAddresses = async ({
+  merchantId = DEFAULT_MERCHANT_ID,
+  uniqueId
+} = {}) => {
+  if (!uniqueId) {
+    return {
+      ok: false,
+      message: "Missing Augmont uniqueId",
+      addresses: []
+    };
+  }
+
+  const response = await requestAugmontWrapperEndpoint(
+    "/api/v1/users/addresses/list",
+    {
+      merchantId,
+      uniqueId
+    },
+    "Unable to fetch Augmont addresses"
+  );
+
+  if (!response.ok) {
+    return {
+      ...response,
+      addresses: []
+    };
+  }
+
+  const result = extractOrderResult(response.data);
+
+  return {
+    ok: true,
+    addresses: Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [],
+    raw: response.raw
   };
 };
 

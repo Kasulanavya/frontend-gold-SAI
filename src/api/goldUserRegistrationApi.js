@@ -170,6 +170,10 @@ export const createGoldUser = async (request) => {
   return {
     ok: true,
     data: result,
+    message:
+      response.data?.payload?.message ||
+      response.data?.message ||
+      "User created successfully",
     raw: response.raw
   };
 };

@@ -8,6 +8,7 @@ import SafeGoldProductCard from "../components/SafeGoldProductCard";
 import { getUserProfile, setUserProfile } from "../api/authApi";
 import {
   createAugmontBuyOrder,
+  fetchAugmontUserProfile,
   fetchAugmontProducts,
   getAugmontSession,
   getAugmontUser,
@@ -346,25 +347,41 @@ export default function Products() {
     setSetupError("");
     setCreatedAugmontUser(null);
 
+    const selectedState = augmontStates.find((item) => item.id === selectedStateId);
+    const selectedCity = augmontCities.find((item) => item.id === selectedCityId);
+
+    if (!selectedState?.name || !selectedCity?.name) {
+      setSetupLoading(false);
+      setSetupError("Selected state or city is invalid. Please reselect both values.");
+      return;
+    }
+
     const nextUniqueId = appProfile?.uniqueId || `AUG-${Date.now()}`;
     const response = await createGoldUser({
       mobileNumber: appProfile.mobileNumber,
       emailId: appProfile.email,
       uniqueId: nextUniqueId,
       userName: appProfile.fullName,
-      cityId: selectedCityId,
-      stateId: selectedStateId,
+      cityName: selectedCity.name,
+      stateName: selectedState.name,
       userPincode: appProfile.pinCode
     });
 
-    setSetupLoading(false);
-
     if (!response?.ok) {
+      setSetupLoading(false);
       setSetupError(response?.message || "Unable to create Augmont user");
       return;
     }
 
-    const profile = normalizeAugmontUserProfile(response.data, nextUniqueId);
+    const profileResponse = await fetchAugmontUserProfile(nextUniqueId);
+    setSetupLoading(false);
+
+    if (!profileResponse?.ok) {
+      setSetupError(profileResponse?.message || response?.message || "Augmont user was created, but profile fetch failed.");
+      return;
+    }
+
+    const profile = normalizeAugmontUserProfile(profileResponse.profile, nextUniqueId);
     const persistedProfile = {
       userName: profile.userName || appProfile?.fullName || "",
       uniqueId: String(profile.uniqueId || nextUniqueId),
@@ -375,14 +392,8 @@ export default function Products() {
       userCityId: String(profile.userCityId || selectedCityId),
       userPincode: profile.userPincode || appProfile?.pinCode || "",
       kycStatus: profile.kycStatus || "",
-      userState:
-        profile.userState ||
-        augmontStates.find((item) => item.id === selectedStateId)?.name ||
-        "",
-      userCity:
-        profile.userCity ||
-        augmontCities.find((item) => item.id === selectedCityId)?.name ||
-        "",
+      userState: profile.userState || selectedState.name,
+      userCity: profile.userCity || selectedCity.name,
       createdAt: profile.createdAt || "",
       userBankId: profile.userBankId || "",
       userAddressId: profile.userAddressId || ""
