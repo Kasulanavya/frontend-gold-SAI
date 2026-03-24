@@ -28,11 +28,13 @@ function SafeGoldProductCard({ product, onClick, onBuy }) {
       className="overflow-hidden rounded-2xl border border-gray-800 bg-[#111] text-left transition hover:-translate-y-1.5"
     >
       {product?.image ? (
-        <img
-          src={product.image}
-          alt={product?.title || "SafeGold product"}
-          className="h-48 w-full object-cover"
-        />
+        <div className="flex h-48 w-full items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.08),_transparent_70%)] p-5">
+          <img
+            src={product.image}
+            alt={product?.title || "SafeGold product"}
+            className="h-full w-full object-contain"
+          />
+        </div>
       ) : (
         <div className="flex h-48 w-full items-center justify-center bg-gray-800">
           <Coins size={40} />
