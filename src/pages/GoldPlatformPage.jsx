@@ -24,8 +24,6 @@ import {
   fetchSafeGoldTransferStatus,
   fetchSafeGoldUserBalance,
   fetchSafeGoldUserTransactions,
-  updateSafeGoldKyc,
-  validateSafeGoldPincode,
   verifySafeGoldRedeem
 } from "../api/safeGoldApi";
 
@@ -58,21 +56,38 @@ const formatDateInputValue = (date) => {
 
 function Card({ title, subtitle, children }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-[#111] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-      <h2 className="text-xl font-semibold text-white">{title}</h2>
-      {subtitle ? <p className="mt-2 text-sm text-white/55">{subtitle}</p> : null}
-      <div className="mt-5 space-y-4">{children}</div>
+    <div className="rounded-[2rem] border border-yellow-500/10 bg-[linear-gradient(180deg,rgba(24,21,14,0.94),rgba(10,10,10,0.96))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur">
+      <div className="border-b border-white/8 pb-4">
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+        {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-white/55">{subtitle}</p> : null}
+      </div>
+      <div className="mt-6 space-y-5">{children}</div>
     </div>
   );
 }
 
 function JsonPanel({ title, value }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-[#0b0b0b] p-4 text-xs text-white/70">
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
+      <p className="text-sm font-semibold tracking-wide text-white">{title}</p>
+      <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/6 bg-[#0a0a0a] p-4 text-xs leading-6 text-white/70">
         {prettyJson(value)}
       </pre>
+    </div>
+  );
+}
+
+function SectionCard({ title, description, children, actions }) {
+  return (
+    <div className="rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+      <div className="flex flex-col gap-4 border-b border-white/8 pb-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-base font-semibold text-white">{title}</p>
+          {description ? <p className="mt-1 max-w-2xl text-sm leading-6 text-white/50">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+      </div>
+      <div className="mt-5 space-y-4">{children}</div>
     </div>
   );
 }
@@ -95,6 +110,23 @@ const selectClassName =
 
 const actionButtonClassName =
   "rounded-xl border border-white/10 px-4 py-3 text-sm text-white transition hover:border-yellow-400/30 hover:bg-yellow-500/5 disabled:cursor-not-allowed disabled:opacity-50";
+
+const moduleTabs = [
+  {
+    id: "augmont",
+    label: "Augmont",
+    eyebrow: "Provider Module",
+    title: "Augmont Workspace",
+    description: "Product discovery, redeem creation, transfers, and workspace data in one focused view."
+  },
+  {
+    id: "safegold",
+    label: "SafeGold",
+    eyebrow: "Provider Module",
+    title: "SafeGold Workspace",
+    description: "Balance checks, transaction history, historical rates, redeem flow, transfer flow, and invoice lookup."
+  }
+];
 
 export default function GoldPlatformPage() {
   const profile = getUserProfile() || {};
@@ -135,8 +167,6 @@ export default function GoldPlatformPage() {
   }, [today]);
   const defaultToDate = useMemo(() => formatDateInputValue(today), [today]);
 
-  const [pinCode, setPinCode] = useState(profile?.pinCode || "");
-  const [productWeight, setProductWeight] = useState("");
   const [historicalFrom, setHistoricalFrom] = useState(defaultFromDate);
   const [historicalTo, setHistoricalTo] = useState(defaultToDate);
   const [historicalType, setHistoricalType] = useState("d");
@@ -156,12 +186,10 @@ export default function GoldPlatformPage() {
   const [safeGoldTransferAmount, setSafeGoldTransferAmount] = useState("");
   const [clientReferenceId, setClientReferenceId] = useState("");
   const [invoiceTxId, setInvoiceTxId] = useState("");
-  const [kycPanNo, setKycPanNo] = useState("");
-  const [kycIdentityType, setKycIdentityType] = useState("aadhaar");
-  const [kycIdentityValue, setKycIdentityValue] = useState("");
   const [safeGoldResult, setSafeGoldResult] = useState({});
   const [safeGoldError, setSafeGoldError] = useState("");
   const [safeGoldLoading, setSafeGoldLoading] = useState(false);
+  const [activeModule, setActiveModule] = useState("augmont");
 
   const summary = useMemo(
     () => [
@@ -177,6 +205,8 @@ export default function GoldPlatformPage() {
     errorSetter("");
     setter({});
   };
+
+  const activeModuleMeta = moduleTabs.find((tab) => tab.id === activeModule) || moduleTabs[0];
 
   useEffect(() => {
     let isMounted = true;
@@ -407,11 +437,6 @@ export default function GoldPlatformPage() {
       return;
     }
 
-    if (action === "validate" && (!pinCode.trim() || !productWeight.trim())) {
-      setSafeGoldError("Pincode and product weight are required.");
-      return;
-    }
-
     if (action === "historical" && (!historicalFrom || !historicalTo)) {
       setSafeGoldError("Select both From and To dates.");
       return;
@@ -424,7 +449,7 @@ export default function GoldPlatformPage() {
         !safeGoldPhoneNo.trim() ||
         !safeGoldState.trim() ||
         !safeGoldCity.trim() ||
-        !pinCode.trim() ||
+        !safeGoldTransferPinCode.trim() ||
         !safeGoldAddress.trim() ||
         !safeGoldRedeemPartnerTxId.trim()
       ) {
@@ -462,21 +487,11 @@ export default function GoldPlatformPage() {
       return;
     }
 
-    if (action === "kyc" && (!kycPanNo.trim() || !kycIdentityValue.trim())) {
-      setSafeGoldError("PAN number and identity value are required for KYC update.");
-      return;
-    }
-
     setSafeGoldLoading(true);
 
     const actions = {
       balance: () => fetchSafeGoldUserBalance({ partnerUserId }),
       transactions: () => fetchSafeGoldUserTransactions({ partnerUserId }),
-      validate: () =>
-        validateSafeGoldPincode({
-          pinCode: pinCode.trim(),
-          productWeight: productWeight.trim()
-        }),
       historical: () =>
         fetchSafeGoldHistorical({
           fromDate: historicalFrom,
@@ -493,7 +508,7 @@ export default function GoldPlatformPage() {
             address: {
               state: safeGoldState.trim(),
               city: safeGoldCity.trim(),
-              pincode: pinCode.trim(),
+              pincode: safeGoldTransferPinCode.trim(),
               address: safeGoldAddress.trim(),
               landmark: safeGoldLandmark.trim()
             },
@@ -526,17 +541,6 @@ export default function GoldPlatformPage() {
       invoice: () =>
         fetchSafeGoldInvoice({
           txId: invoiceTxId.trim()
-        }),
-      kyc: () =>
-        updateSafeGoldKyc({
-          partnerUserId,
-          request: {
-            kycRequirement: {
-              panNo: kycPanNo.trim(),
-              identityType: kycIdentityType,
-              identityValue: kycIdentityValue.trim()
-            }
-          }
         })
     };
 
@@ -562,14 +566,14 @@ export default function GoldPlatformPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.08),_transparent_26%),linear-gradient(180deg,#040404_0%,#090806_45%,#040404_100%)] text-white">
       <Navbar />
 
-      <div className="mx-auto max-w-7xl space-y-6 px-6 pb-12 pt-28">
-        <div className="overflow-hidden rounded-[2rem] border border-yellow-500/15 bg-[radial-gradient(circle_at_top_left,_rgba(250,204,21,0.18),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.03),_rgba(255,255,255,0))] p-8">
+      <div className="mx-auto max-w-7xl space-y-8 px-6 pb-14 pt-28">
+        <div className="overflow-hidden rounded-[2.25rem] border border-yellow-500/15 bg-[radial-gradient(circle_at_top_left,_rgba(250,204,21,0.18),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.04),_rgba(255,255,255,0.01))] p-8 shadow-[0_35px_120px_rgba(0,0,0,0.35)]">
           <p className="text-sm uppercase tracking-[0.24em] text-yellow-300">Goldplatform Workspace</p>
-          <h1 className="mt-3 text-4xl font-bold">Augmont And SafeGold Control Center</h1>
-          <p className="mt-3 max-w-3xl text-sm text-white/60">
+          <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Augmont And SafeGold Control Center</h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/60">
             This workspace stays inside goldplatform after app login. Every action here uses your wrapper APIs only and waits for actual user input instead of sending provider-style hardcoded fields.
           </p>
         </div>
@@ -578,322 +582,324 @@ export default function GoldPlatformPage() {
           <div className="grid gap-4 md:grid-cols-4">
             {summary.map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/8 bg-black/20 p-4">
-                <p className="text-xs text-white/45">{item.label}</p>
-                <p className="mt-2 break-all text-sm font-medium text-white">{item.value}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-white/40">{item.label}</p>
+                <p className="mt-3 break-all text-sm font-medium text-white">{item.value}</p>
               </div>
             ))}
           </div>
         </Card>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card
-            title="Augmont Toolkit"
-            subtitle="Workspace snapshot, product detail, redeem, and transfer flows through the wrapper backend"
-          >
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={loadWorkspace}
-                disabled={workspaceLoading}
-                className="rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-60"
-              >
-                {workspaceLoading ? "Refreshing..." : "Refresh Workspace"}
-              </button>
-            </div>
+        <Card title="Toolkit Modules" subtitle="Switch between provider workspaces without changing the underlying flows.">
+          <div className="flex flex-wrap gap-3">
+            {moduleTabs.map((tab) => {
+              const isActive = activeModule === tab.id;
 
-            {workspaceError ? (
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                {workspaceError}
-              </div>
-            ) : null}
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Fetch Product</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <Field
-                  label="Choose product"
-                  hint={productOptionsLoading ? "Loading products from Augmont..." : "Select a product instead of typing the SKU manually."}
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveModule(tab.id)}
+                  className={`rounded-2xl border px-5 py-3 text-sm font-semibold transition ${
+                    isActive
+                      ? "border-yellow-400/60 bg-yellow-400 text-black shadow-[0_14px_35px_rgba(250,204,21,0.22)]"
+                      : "border-white/10 bg-black/20 text-white/70 hover:border-yellow-400/30 hover:text-white"
+                  }`}
                 >
-                  <select
-                    value={sku}
-                    onChange={(event) => setSku(event.target.value)}
-                    className={selectClassName}
-                    disabled={productOptionsLoading || !productOptions.length}
-                  >
-                    <option value="" className="bg-[#0b0b0b] text-white">
-                      {productOptionsLoading
-                        ? "Loading products..."
-                        : productOptions.length
-                          ? "Select a product"
-                          : "No products available"}
-                    </option>
-                    {productOptions.map((product) => (
-                      <option key={product.id} value={product.sku} className="bg-[#0b0b0b] text-white">
-                        {product.name} ({product.sku})
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={handleSkuLookup}
-                    disabled={skuLoading || !sku}
-                    className={`${actionButtonClassName} w-full sm:w-auto`}
-                  >
-                    {skuLoading ? "Fetching..." : "Fetch Product"}
-                  </button>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-[1.9rem] border border-yellow-500/12 bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.08),_transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300">{activeModuleMeta.eyebrow}</p>
+            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold text-white sm:text-3xl">{activeModuleMeta.title}</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-white/55">{activeModuleMeta.description}</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-black/25 px-4 py-3 text-sm text-white/60">
+                Showing <span className="font-semibold text-yellow-300">{activeModuleMeta.label}</span> module only
+              </div>
+            </div>
+
+            {activeModule === "augmont" ? (
+              <div className="mt-8 space-y-6">
+                <SectionCard
+                  title="Workspace Snapshot"
+                  description="Refresh the current Augmont-backed data available for this logged-in user."
+                  actions={
+                    <button
+                      type="button"
+                      onClick={loadWorkspace}
+                      disabled={workspaceLoading}
+                      className="rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-60"
+                    >
+                      {workspaceLoading ? "Refreshing..." : "Refresh Workspace"}
+                    </button>
+                  }
+                >
+                  {workspaceError ? (
+                    <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
+                      {workspaceError}
+                    </div>
+                  ) : null}
+                  <JsonPanel title="Workspace Data" value={workspaceResult} />
+                </SectionCard>
+
+                <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                  <SectionCard title="Fetch Product" description="Browse available products and inspect a selected Augmont item in detail.">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                      <Field
+                        label="Choose product"
+                        hint={productOptionsLoading ? "Loading products from Augmont..." : "Select a product instead of typing the SKU manually."}
+                      >
+                        <select
+                          value={sku}
+                          onChange={(event) => setSku(event.target.value)}
+                          className={selectClassName}
+                          disabled={productOptionsLoading || !productOptions.length}
+                        >
+                          <option value="" className="bg-[#0b0b0b] text-white">
+                            {productOptionsLoading
+                              ? "Loading products..."
+                              : productOptions.length
+                                ? "Select a product"
+                                : "No products available"}
+                          </option>
+                          {productOptions.map((product) => (
+                            <option key={product.id} value={product.sku} className="bg-[#0b0b0b] text-white">
+                              {product.name} ({product.sku})
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={handleSkuLookup}
+                          disabled={skuLoading || !sku}
+                          className={`${actionButtonClassName} w-full sm:w-auto`}
+                        >
+                          {skuLoading ? "Fetching..." : "Fetch Product"}
+                        </button>
+                      </div>
+                    </div>
+                    {productOptionsError ? <p className="text-xs text-red-200">{productOptionsError}</p> : null}
+                  </SectionCard>
+
+                  <SectionCard title="Redeem Order" description="Create a redeem order using the selected SKU and payment mode.">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="SKU">
+                        <select value={redeemSku} onChange={(event) => setRedeemSku(event.target.value)} className={selectClassName} disabled={productOptionsLoading || !productOptions.length}>
+                          <option value="" className="bg-[#0b0b0b] text-white">
+                            {productOptionsLoading
+                              ? "Loading products..."
+                              : productOptions.length
+                                ? "Select a product"
+                                : "No products available"}
+                          </option>
+                          {productOptions.map((product) => (
+                            <option key={`redeem-${product.id}`} value={product.sku} className="bg-[#0b0b0b] text-white">
+                              {product.name} ({product.sku})
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Quantity">
+                        <input value={redeemQuantity} onChange={(event) => setRedeemQuantity(event.target.value)} placeholder="1" className={inputClassName} />
+                      </Field>
+                      <Field label="Mode of payment">
+                        <select value={augmontRedeemMode} onChange={(event) => setAugmontRedeemMode(event.target.value)} className={selectClassName}>
+                          <option value="wallet" className="bg-[#0b0b0b] text-white">wallet</option>
+                          <option value="UPI" className="bg-[#0b0b0b] text-white">UPI</option>
+                          <option value="NET_BANKING" className="bg-[#0b0b0b] text-white">NET_BANKING</option>
+                          <option value="CARD" className="bg-[#0b0b0b] text-white">CARD</option>
+                        </select>
+                      </Field>
+                      <div className="flex items-end">
+                        <button type="button" onClick={handleAugmontRedeem} disabled={augmontActionLoading} className={`${actionButtonClassName} w-full`}>
+                          {augmontActionLoading ? "Submitting..." : "Create Redeem"}
+                        </button>
+                      </div>
+                    </div>
+                  </SectionCard>
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                  <SectionCard title="Transfer Order" description="Send gold to another Augmont user with a clean, single-step form.">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Receiver uniqueId">
+                        <input value={receiverUniqueId} onChange={(event) => setReceiverUniqueId(event.target.value)} placeholder="Receiver uniqueId" className={inputClassName} />
+                      </Field>
+                      <Field label="Quantity">
+                        <input value={transferQuantity} onChange={(event) => setTransferQuantity(event.target.value)} placeholder="0.0100" className={inputClassName} />
+                      </Field>
+                      <Field label="Metal type">
+                        <select value={augmontTransferMetalType} onChange={(event) => setAugmontTransferMetalType(event.target.value)} className={selectClassName}>
+                          <option value="gold" className="bg-[#0b0b0b] text-white">gold</option>
+                          <option value="silver" className="bg-[#0b0b0b] text-white">silver</option>
+                        </select>
+                      </Field>
+                      <div className="flex items-end">
+                        <button type="button" onClick={handleAugmontTransfer} disabled={augmontActionLoading} className={`${actionButtonClassName} w-full`}>
+                          {augmontActionLoading ? "Submitting..." : "Create Transfer"}
+                        </button>
+                      </div>
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Augmont Responses" description="Operational output from the latest Augmont actions.">
+                    {augmontActionError ? (
+                      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
+                        {augmontActionError}
+                      </div>
+                    ) : null}
+                    <JsonPanel title="Augmont Action Result" value={augmontActionResult} />
+                  </SectionCard>
                 </div>
               </div>
-              {productOptionsError ? (
-                <p className="mt-3 text-xs text-red-200">{productOptionsError}</p>
-              ) : null}
-            </div>
+            ) : (
+              <div className="mt-8 space-y-6">
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Redeem Order</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="SKU">
-                  <select value={redeemSku} onChange={(event) => setRedeemSku(event.target.value)} className={selectClassName} disabled={productOptionsLoading || !productOptions.length}>
-                    <option value="" className="bg-[#0b0b0b] text-white">
-                      {productOptionsLoading
-                        ? "Loading products..."
-                        : productOptions.length
-                          ? "Select a product"
-                          : "No products available"}
-                    </option>
-                    {productOptions.map((product) => (
-                      <option key={`redeem-${product.id}`} value={product.sku} className="bg-[#0b0b0b] text-white">
-                        {product.name} ({product.sku})
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Quantity">
-                  <input value={redeemQuantity} onChange={(event) => setRedeemQuantity(event.target.value)} placeholder="1" className={inputClassName} />
-                </Field>
-                <Field label="Mode of payment">
-                  <select value={augmontRedeemMode} onChange={(event) => setAugmontRedeemMode(event.target.value)} className={selectClassName}>
-                    <option value="wallet" className="bg-[#0b0b0b] text-white">wallet</option>
-                    <option value="UPI" className="bg-[#0b0b0b] text-white">UPI</option>
-                    <option value="NET_BANKING" className="bg-[#0b0b0b] text-white">NET_BANKING</option>
-                    <option value="CARD" className="bg-[#0b0b0b] text-white">CARD</option>
-                  </select>
-                </Field>
-                <div className="flex items-end">
-                  <button type="button" onClick={handleAugmontRedeem} disabled={augmontActionLoading} className={`${actionButtonClassName} w-full`}>
-                    {augmontActionLoading ? "Submitting..." : "Create Redeem"}
-                  </button>
+                <SectionCard
+                  title="Quick Actions"
+                  description="Get the current SafeGold balance and transaction snapshot from the wrapper backend."
+                  actions={
+                    <>
+                      <button type="button" onClick={() => runSafeGoldAction("balance")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                        Fetch Balance
+                      </button>
+                      <button type="button" onClick={() => runSafeGoldAction("transactions")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                        Fetch Transactions
+                      </button>
+                    </>
+                  }
+                >
+                  {safeGoldError ? (
+                    <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
+                      {safeGoldError}
+                    </div>
+                  ) : null}
+
+                  {safeGoldLoading ? (
+                    <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-100">
+                      Running SafeGold action...
+                    </div>
+                  ) : null}
+
+                  <JsonPanel title="SafeGold Result" value={safeGoldResult} />
+                </SectionCard>
+
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <SectionCard title="Historical Rates" description="Review SafeGold historical rate data across a chosen date range.">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <Field label="From">
+                        <input type="date" value={historicalFrom} onChange={(event) => setHistoricalFrom(event.target.value)} className={inputClassName} />
+                      </Field>
+                      <Field label="To">
+                        <input type="date" value={historicalTo} onChange={(event) => setHistoricalTo(event.target.value)} className={inputClassName} />
+                      </Field>
+                      <Field label="Type">
+                        <select value={historicalType} onChange={(event) => setHistoricalType(event.target.value)} className={selectClassName}>
+                          <option value="d" className="bg-[#0b0b0b] text-white">d</option>
+                          <option value="w" className="bg-[#0b0b0b] text-white">w</option>
+                          <option value="m" className="bg-[#0b0b0b] text-white">m</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <button type="button" onClick={() => runSafeGoldAction("historical")} disabled={safeGoldLoading} className={`${actionButtonClassName} mt-1`}>
+                      Fetch Historical Data
+                    </button>
+                  </SectionCard>
+
+                  <SectionCard title="Transfer And Invoice" description="Create a transfer, check status, or fetch an invoice from the same workspace.">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Transfer name">
+                        <input value={safeGoldTransferName} onChange={(event) => setSafeGoldTransferName(event.target.value)} placeholder="Transfer name" className={inputClassName} />
+                      </Field>
+                      <Field label="Transfer email">
+                        <input value={safeGoldTransferEmail} onChange={(event) => setSafeGoldTransferEmail(event.target.value)} placeholder="Transfer email" className={inputClassName} />
+                      </Field>
+                      <Field label="Transfer phone">
+                        <input value={safeGoldTransferPhoneNo} onChange={(event) => setSafeGoldTransferPhoneNo(event.target.value)} placeholder="Transfer phone" className={inputClassName} />
+                      </Field>
+                      <Field label="Transfer pincode">
+                        <input value={safeGoldTransferPinCode} onChange={(event) => setSafeGoldTransferPinCode(event.target.value)} placeholder="Transfer pincode" className={inputClassName} />
+                      </Field>
+                      <Field label="Gold amount">
+                        <input value={safeGoldTransferAmount} onChange={(event) => setSafeGoldTransferAmount(event.target.value)} placeholder="Gold amount" className={inputClassName} />
+                      </Field>
+                      <Field label="Client reference ID">
+                        <input value={clientReferenceId} onChange={(event) => setClientReferenceId(event.target.value)} placeholder="Client reference ID" className={inputClassName} />
+                      </Field>
+                      <Field label="Invoice txId">
+                        <input value={invoiceTxId} onChange={(event) => setInvoiceTxId(event.target.value)} placeholder="Invoice txId" className={inputClassName} />
+                      </Field>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <button type="button" onClick={() => runSafeGoldAction("transferCreate")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                        Create Transfer
+                      </button>
+                      <button type="button" onClick={() => runSafeGoldAction("transferStatus")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                        Transfer Status
+                      </button>
+                      <button type="button" onClick={() => runSafeGoldAction("invoice")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                        Fetch Invoice
+                      </button>
+                    </div>
+                  </SectionCard>
                 </div>
-              </div>
-            </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Transfer Order</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Receiver uniqueId">
-                  <input value={receiverUniqueId} onChange={(event) => setReceiverUniqueId(event.target.value)} placeholder="Receiver uniqueId" className={inputClassName} />
-                </Field>
-                <Field label="Quantity">
-                  <input value={transferQuantity} onChange={(event) => setTransferQuantity(event.target.value)} placeholder="0.0100" className={inputClassName} />
-                </Field>
-                <Field label="Metal type">
-                  <select value={augmontTransferMetalType} onChange={(event) => setAugmontTransferMetalType(event.target.value)} className={selectClassName}>
-                    <option value="gold" className="bg-[#0b0b0b] text-white">gold</option>
-                    <option value="silver" className="bg-[#0b0b0b] text-white">silver</option>
-                  </select>
-                </Field>
-                <div className="flex items-end">
-                  <button type="button" onClick={handleAugmontTransfer} disabled={augmontActionLoading} className={`${actionButtonClassName} w-full`}>
-                    {augmontActionLoading ? "Submitting..." : "Create Transfer"}
-                  </button>
-                </div>
+                <SectionCard title="Redeem Flow" description="Verify, confirm, and track a SafeGold redeem journey from one clean section.">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <Field label="Product code">
+                      <input value={safeGoldProductCode} onChange={(event) => setSafeGoldProductCode(event.target.value)} placeholder="SafeGold product code" className={inputClassName} />
+                    </Field>
+                    <Field label="Recipient name">
+                      <input value={safeGoldRecipientName} onChange={(event) => setSafeGoldRecipientName(event.target.value)} placeholder="Recipient name" className={inputClassName} />
+                    </Field>
+                    <Field label="Phone number">
+                      <input value={safeGoldPhoneNo} onChange={(event) => setSafeGoldPhoneNo(event.target.value)} placeholder="Phone number" className={inputClassName} />
+                    </Field>
+                    <Field label="State">
+                      <input value={safeGoldState} onChange={(event) => setSafeGoldState(event.target.value)} placeholder="State" className={inputClassName} />
+                    </Field>
+                    <Field label="City">
+                      <input value={safeGoldCity} onChange={(event) => setSafeGoldCity(event.target.value)} placeholder="City" className={inputClassName} />
+                    </Field>
+                    <Field label="Partner transaction ID">
+                      <input value={safeGoldRedeemPartnerTxId} onChange={(event) => setSafeGoldRedeemPartnerTxId(event.target.value)} placeholder="Partner transaction ID" className={inputClassName} />
+                    </Field>
+                    <Field label="Address" hint="This is sent exactly as entered to the wrapper API.">
+                      <input value={safeGoldAddress} onChange={(event) => setSafeGoldAddress(event.target.value)} placeholder="Address" className={inputClassName} />
+                    </Field>
+                    <Field label="Landmark">
+                      <input value={safeGoldLandmark} onChange={(event) => setSafeGoldLandmark(event.target.value)} placeholder="Landmark" className={inputClassName} />
+                    </Field>
+                    <Field label="Redeem txId">
+                      <input value={redeemTxId} onChange={(event) => setRedeemTxId(event.target.value)} placeholder="Redeem txId" className={inputClassName} />
+                    </Field>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <button type="button" onClick={() => runSafeGoldAction("redeemVerify")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                      Redeem Verify
+                    </button>
+                    <button type="button" onClick={() => runSafeGoldAction("redeemConfirm")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                      Redeem Confirm
+                    </button>
+                    <button type="button" onClick={() => runSafeGoldAction("redeemStatus")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                      Redeem Status
+                    </button>
+                    <button type="button" onClick={() => runSafeGoldAction("redeemDispatch")} disabled={safeGoldLoading} className={actionButtonClassName}>
+                      Dispatch Status
+                    </button>
+                  </div>
+                </SectionCard>
               </div>
-            </div>
-
-            {augmontActionError ? (
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                {augmontActionError}
-              </div>
-            ) : null}
-
-            <JsonPanel title="Workspace Data" value={workspaceResult} />
-            <JsonPanel title="Augmont Action Result" value={augmontActionResult} />
-          </Card>
-
-          <Card
-            title="SafeGold Toolkit"
-            subtitle="Balance, transactions, pincode, historical, redeem, transfer, invoice, and KYC through the wrapper backend"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => runSafeGoldAction("balance")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                Fetch Balance
-              </button>
-              <button type="button" onClick={() => runSafeGoldAction("transactions")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                Fetch Transactions
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Pincode Validation</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Pincode">
-                  <input value={pinCode} onChange={(event) => setPinCode(event.target.value)} placeholder="Enter pincode" className={inputClassName} />
-                </Field>
-                <Field label="Product weight">
-                  <input value={productWeight} onChange={(event) => setProductWeight(event.target.value)} placeholder="Enter product weight" className={inputClassName} />
-                </Field>
-              </div>
-              <button type="button" onClick={() => runSafeGoldAction("validate")} disabled={safeGoldLoading} className={`${actionButtonClassName} mt-4`}>
-                Validate Pincode
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Historical Rates</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Field label="From">
-                  <input type="date" value={historicalFrom} onChange={(event) => setHistoricalFrom(event.target.value)} className={inputClassName} />
-                </Field>
-                <Field label="To">
-                  <input type="date" value={historicalTo} onChange={(event) => setHistoricalTo(event.target.value)} className={inputClassName} />
-                </Field>
-                <Field label="Type">
-                  <select value={historicalType} onChange={(event) => setHistoricalType(event.target.value)} className={selectClassName}>
-                    <option value="d" className="bg-[#0b0b0b] text-white">d</option>
-                    <option value="w" className="bg-[#0b0b0b] text-white">w</option>
-                    <option value="m" className="bg-[#0b0b0b] text-white">m</option>
-                  </select>
-                </Field>
-              </div>
-              <button type="button" onClick={() => runSafeGoldAction("historical")} disabled={safeGoldLoading} className={`${actionButtonClassName} mt-4`}>
-                Fetch Historical Data
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Redeem Flow</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Product code">
-                  <input value={safeGoldProductCode} onChange={(event) => setSafeGoldProductCode(event.target.value)} placeholder="SafeGold product code" className={inputClassName} />
-                </Field>
-                <Field label="Recipient name">
-                  <input value={safeGoldRecipientName} onChange={(event) => setSafeGoldRecipientName(event.target.value)} placeholder="Recipient name" className={inputClassName} />
-                </Field>
-                <Field label="Phone number">
-                  <input value={safeGoldPhoneNo} onChange={(event) => setSafeGoldPhoneNo(event.target.value)} placeholder="Phone number" className={inputClassName} />
-                </Field>
-                <Field label="State">
-                  <input value={safeGoldState} onChange={(event) => setSafeGoldState(event.target.value)} placeholder="State" className={inputClassName} />
-                </Field>
-                <Field label="City">
-                  <input value={safeGoldCity} onChange={(event) => setSafeGoldCity(event.target.value)} placeholder="City" className={inputClassName} />
-                </Field>
-                <Field label="Partner transaction ID">
-                  <input value={safeGoldRedeemPartnerTxId} onChange={(event) => setSafeGoldRedeemPartnerTxId(event.target.value)} placeholder="Partner transaction ID" className={inputClassName} />
-                </Field>
-                <Field label="Address" hint="This is sent exactly as entered to the wrapper API.">
-                  <input value={safeGoldAddress} onChange={(event) => setSafeGoldAddress(event.target.value)} placeholder="Address" className={inputClassName} />
-                </Field>
-                <Field label="Landmark">
-                  <input value={safeGoldLandmark} onChange={(event) => setSafeGoldLandmark(event.target.value)} placeholder="Landmark" className={inputClassName} />
-                </Field>
-                <Field label="Redeem txId">
-                  <input value={redeemTxId} onChange={(event) => setRedeemTxId(event.target.value)} placeholder="Redeem txId" className={inputClassName} />
-                </Field>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <button type="button" onClick={() => runSafeGoldAction("redeemVerify")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Redeem Verify
-                </button>
-                <button type="button" onClick={() => runSafeGoldAction("redeemConfirm")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Redeem Confirm
-                </button>
-                <button type="button" onClick={() => runSafeGoldAction("redeemStatus")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Redeem Status
-                </button>
-                <button type="button" onClick={() => runSafeGoldAction("redeemDispatch")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Dispatch Status
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Transfer And Invoice</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Transfer name">
-                  <input value={safeGoldTransferName} onChange={(event) => setSafeGoldTransferName(event.target.value)} placeholder="Transfer name" className={inputClassName} />
-                </Field>
-                <Field label="Transfer email">
-                  <input value={safeGoldTransferEmail} onChange={(event) => setSafeGoldTransferEmail(event.target.value)} placeholder="Transfer email" className={inputClassName} />
-                </Field>
-                <Field label="Transfer phone">
-                  <input value={safeGoldTransferPhoneNo} onChange={(event) => setSafeGoldTransferPhoneNo(event.target.value)} placeholder="Transfer phone" className={inputClassName} />
-                </Field>
-                <Field label="Transfer pincode">
-                  <input value={safeGoldTransferPinCode} onChange={(event) => setSafeGoldTransferPinCode(event.target.value)} placeholder="Transfer pincode" className={inputClassName} />
-                </Field>
-                <Field label="Gold amount">
-                  <input value={safeGoldTransferAmount} onChange={(event) => setSafeGoldTransferAmount(event.target.value)} placeholder="Gold amount" className={inputClassName} />
-                </Field>
-                <Field label="Client reference ID">
-                  <input value={clientReferenceId} onChange={(event) => setClientReferenceId(event.target.value)} placeholder="Client reference ID" className={inputClassName} />
-                </Field>
-                <Field label="Invoice txId">
-                  <input value={invoiceTxId} onChange={(event) => setInvoiceTxId(event.target.value)} placeholder="Invoice txId" className={inputClassName} />
-                </Field>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <button type="button" onClick={() => runSafeGoldAction("transferCreate")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Create Transfer
-                </button>
-                <button type="button" onClick={() => runSafeGoldAction("transferStatus")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Transfer Status
-                </button>
-                <button type="button" onClick={() => runSafeGoldAction("invoice")} disabled={safeGoldLoading} className={actionButtonClassName}>
-                  Fetch Invoice
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">KYC Update</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Field label="PAN number">
-                  <input value={kycPanNo} onChange={(event) => setKycPanNo(event.target.value)} placeholder="PAN number" className={inputClassName} />
-                </Field>
-                <Field label="Identity type">
-                  <select value={kycIdentityType} onChange={(event) => setKycIdentityType(event.target.value)} className={selectClassName}>
-                    <option value="aadhaar" className="bg-[#0b0b0b] text-white">aadhaar</option>
-                    <option value="passport" className="bg-[#0b0b0b] text-white">passport</option>
-                    <option value="driving_license" className="bg-[#0b0b0b] text-white">driving_license</option>
-                    <option value="voter_id" className="bg-[#0b0b0b] text-white">voter_id</option>
-                  </select>
-                </Field>
-                <Field label="Identity value">
-                  <input value={kycIdentityValue} onChange={(event) => setKycIdentityValue(event.target.value)} placeholder="Identity value" className={inputClassName} />
-                </Field>
-              </div>
-              <button type="button" onClick={() => runSafeGoldAction("kyc")} disabled={safeGoldLoading} className={`${actionButtonClassName} mt-4`}>
-                Update KYC
-              </button>
-            </div>
-
-            {safeGoldError ? (
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                {safeGoldError}
-              </div>
-            ) : null}
-
-            {safeGoldLoading ? (
-              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-100">
-                Running SafeGold action...
-              </div>
-            ) : null}
-
-            <JsonPanel title="SafeGold Result" value={safeGoldResult} />
-          </Card>
-        </div>
+            )}
+          </div>
+        </Card>
       </div>
 
       {isProductModalOpen && skuResult?.sku ? (
