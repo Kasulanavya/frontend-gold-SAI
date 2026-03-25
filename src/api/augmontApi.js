@@ -335,6 +335,11 @@ export const normalizeGoldRatePayload = (data) => {
     currentPrice,
     buyPrice: buyPrice || currentPrice,
     sellPrice: sellPrice || currentPrice,
+    blockId:
+      data?.payload?.result?.data?.blockId ||
+      data?.payload?.result?.blockId ||
+      data?.blockId ||
+      "",
     metalType: rates?.metalType || "gold",
     updatedAt:
       rates?.updatedAt ||
@@ -890,7 +895,7 @@ export const fetchAugmontPassbook = async (uniqueId) => {
   }
 
   const response = await requestAugmontUserEndpoint("/api/v1/users/passbook", {
-    uniqueId
+    uniqueId: String(uniqueId || "").trim()
   });
 
   if (!response.ok) {

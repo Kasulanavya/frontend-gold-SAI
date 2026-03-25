@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -48,6 +49,39 @@ const getDefaultQuantity = (product) => {
   const weight = Number.parseFloat(product?.productWeight || "0");
   if (!Number.isFinite(weight) || weight <= 0) return "0.1000";
   return weight.toFixed(4);
+};
+
+const extractSafeGoldMessage = (value, fallback = "SafeGold redeem verification failed.") => {
+  if (!value) return fallback;
+
+  const candidates = [
+    value?.message,
+    value?.error,
+    value?.payload?.message,
+    value?.payload?.error,
+    value?.details?.[0],
+    value?.details,
+    value?.response?.message
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed?.message) return parsed.message;
+      } catch {
+        return trimmed;
+      }
+    }
+    if (typeof candidate === "object" && candidate?.message) {
+      return candidate.message;
+    }
+  }
+
+  return fallback;
 };
 
 function ErrorBanner({ message, meta, onRetry }) {
@@ -253,52 +287,6 @@ export default function Products() {
     return () => window.clearTimeout(timeoutId);
   }, [loadAugmontProducts, loadSafeGoldProducts]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadAugmontBanks = async () => {
-      if (!selectedAugmontProduct || !uniqueId) {
-        if (isMounted) {
-          setAugmontBanks([]);
-          setAugmontSellForm((current) => ({
-            ...current,
-            userBankId: ""
-          }));
-        }
-        return;
-      }
-
-      const response = await fetchAugmontUserBanks(uniqueId, sessionMerchantId);
-
-      if (!isMounted) return;
-
-      if (!response?.ok) {
-        setAugmontBanks([]);
-        setAugmontSellForm((current) => ({
-          ...current,
-          userBankId: ""
-        }));
-        return;
-      }
-
-      const nextBanks = Array.isArray(response.banks) ? response.banks : [];
-      const nextBankId = String(
-        nextBanks[0]?.userBankId || nextBanks[0]?.bankId || nextBanks[0]?.id || ""
-      );
-
-      setAugmontBanks(nextBanks);
-      setAugmontSellForm((current) => ({
-        ...current,
-        userBankId: current.userBankId || nextBankId
-      }));
-    };
-
-    loadAugmontBanks();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedAugmontProduct, uniqueId, sessionMerchantId]);
 
   useEffect(() => {
     if (!selectedAugmontProduct || !onboardingReady || redeemLoading || augmontRedeemOrder) {
@@ -873,6 +861,23 @@ export default function Products() {
     !augmontError &&
     !safeGoldError;
 
+  const redeemSummary = (() => {
+    const source = augmontRedeemOrder || {};
+    const result = source?.result?.data || source?.payload?.result?.data || source?.data || source;
+    return {
+      message:
+        source?.message ||
+        source?.payload?.message ||
+        source?.statusMessage ||
+        result?.message ||
+        'Redeem order created successfully.',
+      shippingCharges: result?.shippingCharges || source?.shippingCharges || '',
+      goldBalance: result?.goldBalance || source?.goldBalance || '',
+      silverBalance: result?.silverBalance || source?.silverBalance || '',
+      hasSummary: Boolean(result?.shippingCharges || result?.goldBalance || result?.silverBalance)
+    };
+  })();
+
   return (
     <div className="bg-black text-white">
       <Navbar />
@@ -972,7 +977,7 @@ export default function Products() {
 
       {selectedAugmontProduct ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-3xl border border-white/10 bg-[#0f0f0f] p-6">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl border border-white/10 bg-[#0f0f0f] p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-yellow-300">
@@ -982,17 +987,17 @@ export default function Products() {
                   {selectedAugmontProduct.name}
                 </h3>
                 <p className="mt-2 text-sm text-white/55">
-                  This product flow now focuses on Augmont redeem create. If onboarding is already complete, the product Buy button directly triggers redeem create using the saved address and stored user details.
+                  The Buy button now triggers Augmont redeem create automatically and shows only the result message here.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => {
-                  autoRedeemRequestRef.current = "";
                   setSelectedAugmontProduct(null);
                   setCreatedAugmontUser(null);
                   setAugmontRedeemOrder(null);
-                              setSetupError("");
+                  setSetupError("");
                   setBuyError("");
                   setRedeemError("");
                 }}
@@ -1002,498 +1007,59 @@ export default function Products() {
               </button>
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-5">
-                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-                  <p className="text-sm font-semibold text-cyan-200">
-                    Required onboarding flow
-                  </p>
-                  <p className="mt-2 text-xs text-white/60">
-                    {"users/create -> users/profile -> users/banks/create -> users/addresses/create -> users/addresses/list -> users/kyc/profile"}
-                  </p>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+              <p className="text-sm font-semibold text-white">Redeem Response</p>
+              <p className="mt-2 text-xs text-white/50">
+                Only the final message is shown for this product action.
+              </p>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-white/45">Resolved uniqueId</p>
-                      <p className="mt-1 break-all text-sm font-medium text-white">
-                        {uniqueId || "Will be created after setup"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-white/45">Setup status</p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        {onboardingReady ? "User ready for later Augmont APIs" : "Onboarding required"}
-                      </p>
-                    </div>
+              {redeemLoading ? (
+                <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-6 text-sm text-yellow-100">
+                  Creating Augmont redeem order...
+                </div>
+              ) : redeemError ? (
+                <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
+                  {redeemError}
+                </div>
+              ) : augmontRedeemOrder ? (
+                <div className="mt-6 space-y-4">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-100">
+                    {redeemSummary.message}
                   </div>
-
-                  {!onboardingReady ? (
-                    <div className="mt-4 space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">User name</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.userName}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                userName: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">Mobile number</span>
-                          <input
-                            type="tel"
-                            value={onboardingForm.mobileNumber}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                mobileNumber: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">Email</span>
-                          <input
-                            type="email"
-                            value={onboardingForm.emailId}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                emailId: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">Pincode</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.userPincode}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                userPincode: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">State name</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.stateName}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                stateName: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                            placeholder="Telangana"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">City name</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.cityName}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                cityName: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                            placeholder="Hyderabad"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">Bank account name</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.accountName}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                accountName: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-white/60">Bank account number</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.accountNumber}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                accountNumber: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block sm:col-span-2">
-                          <span className="mb-2 block text-sm text-white/60">IFSC code</span>
-                          <input
-                            type="text"
-                            value={onboardingForm.ifscCode}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                ifscCode: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                          />
-                        </label>
-
-                        <label className="block sm:col-span-2">
-                          <span className="mb-2 block text-sm text-white/60">Address</span>
-                          <textarea
-                            value={onboardingForm.address}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                address: event.target.value
-                              }))
-                            }
-                            className="min-h-[96px] w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                            placeholder="Flat 101, Test Residency, Hyderabad"
-                          />
-                        </label>
-
-                        <label className="block sm:col-span-2">
-                          <span className="mb-2 block text-sm text-white/60">
-                            Optional KYC JSON payload
-                          </span>
-                          <textarea
-                            value={onboardingForm.kycPayload}
-                            onChange={(event) =>
-                              setOnboardingForm((current) => ({
-                                ...current,
-                                kycPayload: event.target.value
-                              }))
-                            }
-                            className="min-h-[120px] w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 font-mono text-sm outline-none"
-                            placeholder='{"panNumber":"ABCDE1234F"}'
-                          />
-                          <p className="mt-2 text-xs text-white/45">
-                            Use the current wrapper contract fields here if KYC update is needed.
+                  {redeemSummary.hasSummary ? (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {redeemSummary.shippingCharges ? (
+                        <div className="rounded-xl bg-[#111] p-3">
+                          <p className="text-xs text-white/45">Shipping charges</p>
+                          <p className="mt-1 text-sm font-medium text-white">
+                            Rs {redeemSummary.shippingCharges}
                           </p>
-                        </label>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {setupError ? (
-                    <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                      {setupError}
+                        </div>
+                      ) : null}
+                      {redeemSummary.goldBalance ? (
+                        <div className="rounded-xl bg-[#111] p-3">
+                          <p className="text-xs text-white/45">Gold balance</p>
+                          <p className="mt-1 text-sm font-medium text-white">
+                            {redeemSummary.goldBalance}
+                          </p>
+                        </div>
+                      ) : null}
+                      {redeemSummary.silverBalance ? (
+                        <div className="rounded-xl bg-[#111] p-3">
+                          <p className="text-xs text-white/45">Silver balance</p>
+                          <p className="mt-1 text-sm font-medium text-white">
+                            {redeemSummary.silverBalance}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-white/45">Merchant ID</p>
-                    <p className="mt-1 text-sm font-medium text-white">{sessionMerchantId}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-white/45">Unique ID</p>
-                    <p className="mt-1 break-all text-sm font-medium text-white">
-                      {uniqueId || "Missing uniqueId"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-white/45">Customer mapped ID</p>
-                    <p className="mt-1 text-sm font-medium text-white">
-                      {customerMappedId || "Will be available after user creation"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-white/45">Selected product</p>
-                    <p className="mt-1 text-sm font-medium text-white">
-                      {selectedAugmontProduct.name}
-                    </p>
-                  </div>
+              ) : (
+                <div className="mt-6 rounded-xl border border-dashed border-white/10 p-6 text-sm text-white/45">
+                  Click the Buy button to trigger redeem create.
                 </div>
-
-                {showLegacyTradeActions && onboardingReady ? (
-                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                    <p className="text-sm font-semibold text-yellow-200">
-                      Buy order create is now available
-                    </p>
-                    <p className="mt-2 text-xs text-white/60">
-                      The app login is done, the Augmont user is ready, and this step now calls `orders/buy/create` using the stored `uniqueId`. Backend fills provider-managed fields internally.
-                    </p>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Quantity</span>
-                        <input
-                          type="number"
-                          value={augmontBuyForm.quantity}
-                          onChange={(event) =>
-                            setAugmontBuyForm((current) => ({
-                              ...current,
-                              quantity: event.target.value
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Mode of payment</span>
-                        <select
-                          value={augmontBuyForm.modeOfPayment}
-                          onChange={(event) =>
-                            setAugmontBuyForm((current) => ({
-                              ...current,
-                              modeOfPayment: event.target.value
-                            }))
-                            }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                        >
-                          {paymentModes.map((mode) => (
-                            <option key={mode} value={mode}>
-                              {mode}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-
-                    {buyError ? (
-                      <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                        {buyError}
-                      </div>
-                    ) : null}
-
-                    <button
-                      onClick={handleCreateAugmontBuyOrder}
-                      disabled={buyLoading}
-                      className="mt-4 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {buyLoading ? "Placing Buy Order..." : "Confirm Buy Order"}
-                    </button>
-                  </div>
-                ) : null}
-                {onboardingReady ? (
-                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4">
-                    <p className="text-sm font-semibold text-rose-200">
-                      Augmont Buy now triggers redeem automatically
-                    </p>
-                    <p className="mt-2 text-xs text-white/60">
-                      No second button is needed here. The product Buy click calls `orders/redeem/create` automatically using your stored `uniqueId`, the signup-saved address id, selected product SKU, and wrapper-managed mobile number.
-                    </p>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Quantity</p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          {augmontRedeemForm.quantity || "1"}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Saved address id</p>
-                        <p className="mt-1 break-all text-sm font-medium text-white">
-                          {storedAugmontAddressId || "Not available"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {!storedAugmontAddressId ? (
-                      <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                        Complete address setup during signup first. Redeem create uses that saved address id directly.
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {showLegacyTradeActions && onboardingReady ? (
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                    <p className="text-sm font-semibold text-emerald-200">
-                      Augmont sell order create is now available
-                    </p>
-                    <p className="mt-2 text-xs text-white/60">
-                      This step calls `orders/sell/create` using the stored `uniqueId` and a saved bank account. Backend fills provider-managed fields internally and creates the Augmont sell order.
-                    </p>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Quantity</span>
-                        <input
-                          type="number"
-                          value={augmontSellForm.quantity}
-                          onChange={(event) =>
-                            setAugmontSellForm((current) => ({
-                              ...current,
-                              quantity: event.target.value
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm text-white/60">Saved bank account</span>
-                        <select
-                          value={augmontSellForm.userBankId}
-                          onChange={(event) =>
-                            setAugmontSellForm((current) => ({
-                              ...current,
-                              userBankId: event.target.value
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 outline-none"
-                        >
-                          <option value="">Select bank account</option>
-                          {augmontBanks.map((bank, index) => {
-                            const bankId = String(
-                              bank?.userBankId || bank?.bankId || bank?.id || `bank-${index}`
-                            );
-                            const bankName =
-                              bank?.accountName || bank?.account_holder_name || bank?.name || "Bank Account";
-                            const bankNumber =
-                              bank?.accountNumber || bank?.account_number || "No account number";
-
-                            return (
-                              <option key={bankId} value={bankId}>
-                                {`${bankName} - ${bankNumber}`}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                    </div>
-
-                    {sellError ? (
-                      <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                        {sellError}
-                      </div>
-                    ) : null}
-
-                    {augmontBanks.length === 0 ? (
-                      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                        No saved bank accounts found. Complete Augmont bank setup first.
-                      </div>
-                    ) : null}
-
-                    <button
-                      onClick={handleCreateAugmontSellOrder}
-                      disabled={sellLoading || augmontBanks.length === 0}
-                      className="mt-4 w-full rounded-xl bg-emerald-400 py-3 font-semibold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {sellLoading ? "Placing Sell Order..." : "Confirm Sell Order (Augmont)"}
-                    </button>
-                  </div>
-                ) : null}
-
-                <button
-                  onClick={handleCreateAugmontUser}
-                  disabled={setupLoading || buyLoading || redeemLoading || sellLoading}
-                  className="w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {setupLoading
-                    ? "Running Wrapper Onboarding..."
-                    : onboardingReady
-                      ? "Re-run Wrapper Onboarding"
-                      : "Run Wrapper Onboarding"}
-                </button>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-                <p className="text-sm font-semibold text-white">Augmont Redeem Order Response</p>
-                <p className="mt-2 text-xs text-white/50">
-                  This product flow shows only the Augmont redeem-create result or the exact prerequisite blocking redeem.
-                </p>
-
-                {!onboardingReady ? (
-                  <div className="mt-6 rounded-xl border border-dashed border-white/10 p-6 text-sm text-white/45">
-                    Complete Augmont onboarding first. This product flow uses redeem create only.
-                  </div>
-                ) : redeemLoading ? (
-                  <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-6 text-sm text-yellow-100">
-                    Creating Augmont redeem order...
-                  </div>
-                ) : redeemError ? (
-                  <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                    {redeemError}
-                  </div>
-                ) : augmontRedeemOrder ? (
-                  <div className="mt-6 space-y-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Redeem quantity</p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          {augmontRedeemOrder.quantity || augmontRedeemForm.quantity || "NA"}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Total amount</p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          Rs {formatPrice(augmontRedeemOrder.totalAmount)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Pre-tax amount</p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          Rs {formatPrice(augmontRedeemOrder.preTaxAmount)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Transaction ID</p>
-                        <p className="mt-1 break-all text-sm font-medium text-white">
-                          {augmontRedeemOrder.transactionId || "NA"}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Merchant transaction ID</p>
-                        <p className="mt-1 break-all text-sm font-medium text-white">
-                          {augmontRedeemOrder.merchantTransactionId || "NA"}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#111] p-3">
-                        <p className="text-xs text-white/45">Unique ID</p>
-                        <p className="mt-1 break-all text-sm font-medium text-white">
-                          {augmontRedeemOrder.uniqueId || uniqueId || "NA"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
-                      <p className="text-sm font-semibold text-rose-200">Redeem Create Response</p>
-                      <pre className="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs text-white/70">
-                        {JSON.stringify(augmontRedeemOrder, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-6 rounded-xl border border-dashed border-white/10 p-6 text-sm text-white/45">
-                    Waiting for Augmont redeem response.
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -1510,9 +1076,6 @@ export default function Products() {
                 <h3 className="mt-2 text-2xl font-semibold text-white">
                   {selectedSafeGoldProduct.title}
                 </h3>
-                <p className="mt-2 text-sm text-white/55">
-                  The Buy button uses your stored signup details and directly calls `/api/v1/gold/redeem/verify` for this product.
-                </p>
               </div>
 
               <button
@@ -1530,9 +1093,6 @@ export default function Products() {
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
               <p className="text-sm font-semibold text-white">Redeem Verify Response</p>
-              <p className="mt-2 text-xs text-white/50">
-                No extra form is shown here. The request was built from the details saved during signup.
-              </p>
 
               {safeGoldRedeemLoading ? (
                 <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-6 text-sm text-yellow-100">
@@ -1542,7 +1102,7 @@ export default function Products() {
 
               {safeGoldRedeemError ? (
                 <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-200">
-                  {safeGoldRedeemError}
+                  {extractSafeGoldMessage(safeGoldRedeemError)}
                 </div>
               ) : null}
 
@@ -1553,26 +1113,18 @@ export default function Products() {
               ) : null}
 
               {safeGoldRedeemResult ? (
-                <div className="mt-6 space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-[#111] p-3">
-                      <p className="text-xs text-white/45">Price</p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        Rs {formatPrice(safeGoldRedeemResult.price || safeGoldRedeemResult.amount)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-[#111] p-3">
-                      <p className="text-xs text-white/45">Estimated dispatch</p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        {safeGoldRedeemResult.estimatedDispatch || "NA"}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-[#111] p-3 sm:col-span-2">
-                      <p className="text-xs text-white/45">Transaction ID</p>
-                      <p className="mt-1 break-all text-sm font-medium text-white">
-                        {safeGoldRedeemResult.txId || "NA"}
-                      </p>
-                    </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-[#111] p-3">
+                    <p className="text-xs text-white/45">Price</p>
+                    <p className="mt-1 text-sm font-medium text-white">
+                      Rs {formatPrice(safeGoldRedeemResult.price || safeGoldRedeemResult.amount)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-[#111] p-3">
+                    <p className="text-xs text-white/45">Estimated dispatch</p>
+                    <p className="mt-1 text-sm font-medium text-white">
+                      {safeGoldRedeemResult.estimatedDispatch || "NA"}
+                    </p>
                   </div>
                 </div>
               ) : null}

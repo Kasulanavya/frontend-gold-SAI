@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import { getUserProfile } from "../api/authApi";
 import {
+  createAugmontBuyOrder,
   createAugmontRedeemOrder,
+  createAugmontSellOrder,
   createAugmontTransferOrder,
+  fetchAugmontBuyInvoice,
   fetchAugmontFdSchemes,
-  fetchAugmontPassbook,
   fetchAugmontProducts,
   fetchAugmontProductDetail,
   fetchAugmontRedeemOrders,
+  fetchAugmontSellInvoice,
   fetchAugmontTransferOrders,
   fetchAugmontUserProfile,
   getAugmontSession,
@@ -155,6 +158,29 @@ export default function GoldPlatformPage() {
   const [receiverUniqueId, setReceiverUniqueId] = useState("");
   const [transferQuantity, setTransferQuantity] = useState("0.0100");
   const [augmontTransferMetalType, setAugmontTransferMetalType] = useState("gold");
+  const [augmontBuyQuantity, setAugmontBuyQuantity] = useState("1.0000");
+  const [augmontBuyModeOfPayment, setAugmontBuyModeOfPayment] = useState("UPI");
+  const [augmontBuyPhoneNumber, setAugmontBuyPhoneNumber] = useState(profile?.mobileNumber || "");
+  const [augmontBuyMerchantTransactionId, setAugmontBuyMerchantTransactionId] = useState("");
+  const [augmontBuyOrderResult, setAugmontBuyOrderResult] = useState({});
+  const [augmontBuyOrderError, setAugmontBuyOrderError] = useState("");
+  const [augmontBuyOrderLoading, setAugmontBuyOrderLoading] = useState(false);
+  const [augmontBuyInvoiceTxId, setAugmontBuyInvoiceTxId] = useState("");
+  const [augmontBuyInvoiceResult, setAugmontBuyInvoiceResult] = useState({});
+  const [augmontBuyInvoiceError, setAugmontBuyInvoiceError] = useState("");
+  const [augmontBuyInvoiceLoading, setAugmontBuyInvoiceLoading] = useState(false);
+  const [augmontSellMetalType, setAugmontSellMetalType] = useState("gold");
+  const [augmontSellQuantity, setAugmontSellQuantity] = useState("0.0500");
+  const [augmontSellPhoneNumber, setAugmontSellPhoneNumber] = useState(profile?.mobileNumber || "");
+  const [augmontSellUserBankId, setAugmontSellUserBankId] = useState(profile?.userBankId || "");
+  const [augmontSellMerchantTransactionId, setAugmontSellMerchantTransactionId] = useState("");
+  const [augmontSellOrderResult, setAugmontSellOrderResult] = useState({});
+  const [augmontSellOrderError, setAugmontSellOrderError] = useState("");
+  const [augmontSellOrderLoading, setAugmontSellOrderLoading] = useState(false);
+  const [augmontSellInvoiceTxId, setAugmontSellInvoiceTxId] = useState("");
+  const [augmontSellInvoiceResult, setAugmontSellInvoiceResult] = useState({});
+  const [augmontSellInvoiceError, setAugmontSellInvoiceError] = useState("");
+  const [augmontSellInvoiceLoading, setAugmontSellInvoiceLoading] = useState(false);
   const [augmontActionResult, setAugmontActionResult] = useState({});
   const [augmontActionError, setAugmontActionError] = useState("");
   const [augmontActionLoading, setAugmontActionLoading] = useState(false);
@@ -284,7 +310,6 @@ export default function GoldPlatformPage() {
       const augmontTasks = uniqueId
         ? Promise.all([
             fetchAugmontUserProfile(uniqueId),
-            fetchAugmontPassbook(uniqueId),
             fetchAugmontFdSchemes({ merchantId }),
             fetchAugmontRedeemOrders({ merchantId, uniqueId }),
             fetchAugmontTransferOrders({ merchantId, uniqueId })
@@ -307,10 +332,9 @@ export default function GoldPlatformPage() {
         augmont: uniqueId
           ? {
               profile: augmontResponses[0]?.profile || {},
-              passbook: augmontResponses[1]?.passbook || {},
-              fdSchemes: augmontResponses[2]?.schemes || [],
-              redeemOrders: augmontResponses[3]?.orders || [],
-              transferOrders: augmontResponses[4]?.orders || []
+              fdSchemes: augmontResponses[1]?.schemes || [],
+              redeemOrders: augmontResponses[2]?.orders || [],
+              transferOrders: augmontResponses[3]?.orders || []
             }
           : {
               message: "Augmont uniqueId is not available for this user yet."
@@ -426,6 +450,145 @@ export default function GoldPlatformPage() {
     }
 
     setAugmontActionResult(response.order || {});
+  };
+
+  const generateAugmontTxnId = (prefix) =>
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+  const handleAugmontBuyCreate = async () => {
+    setActionState(setAugmontBuyOrderResult, setAugmontBuyOrderError);
+
+    if (!merchantId) {
+      setAugmontBuyOrderError("Merchant ID is missing.");
+      return;
+    }
+
+    const selectedSku = String(skuResult?.sku || sku || "").trim();
+    const phoneNumber = String(augmontBuyPhoneNumber || profile?.mobileNumber || "").trim();
+    const merchantTransactionId = String(augmontBuyMerchantTransactionId || generateAugmontTxnId("AUGBUY")).trim();
+
+    if (!uniqueId || !selectedSku || !augmontBuyQuantity.trim() || !phoneNumber) {
+      setAugmontBuyOrderError("uniqueId, SKU, quantity, and phone number are required.");
+      return;
+    }
+
+    setAugmontBuyOrderLoading(true);
+    const response = await createAugmontBuyOrder({
+      merchantId,
+      request: {
+        uniqueId,
+        phoneNumber,
+        merchantTransactionId,
+        metalType: String(skuResult?.metalType || "gold").toLowerCase(),
+        quantity: augmontBuyQuantity.trim(),
+        modeOfPayment: augmontBuyModeOfPayment,
+        blockId: String(skuResult?.blockId || "").trim(),
+        lockPrice: String(skuResult?.basePrice || skuResult?.sellingPrice || "").trim(),
+        amount: String(skuResult?.basePrice || "").trim()
+      }
+    });
+    setAugmontBuyOrderLoading(false);
+
+    if (!response?.ok) {
+      setAugmontBuyOrderError(response?.message || "Unable to create buy order.");
+      return;
+    }
+
+    setAugmontBuyOrderResult(response.order || {});
+    setAugmontBuyInvoiceTxId(String(response.order?.transactionId || response.order?.merchantTransactionId || merchantTransactionId || "").trim());
+    setAugmontBuyMerchantTransactionId(merchantTransactionId);
+  };
+
+  const handleAugmontBuyInvoice = async () => {
+    setActionState(setAugmontBuyInvoiceResult, setAugmontBuyInvoiceError);
+
+    if (!merchantId) {
+      setAugmontBuyInvoiceError("Merchant ID is missing.");
+      return;
+    }
+
+    const transactionId = String(augmontBuyInvoiceTxId || augmontBuyOrderResult?.transactionId || "").trim();
+    if (!transactionId) {
+      setAugmontBuyInvoiceError("Buy transaction ID is required.");
+      return;
+    }
+
+    setAugmontBuyInvoiceLoading(true);
+    const response = await fetchAugmontBuyInvoice({ merchantId, transactionId });
+    setAugmontBuyInvoiceLoading(false);
+
+    if (!response?.ok) {
+      setAugmontBuyInvoiceError(response?.message || "Unable to fetch buy invoice.");
+      return;
+    }
+
+    setAugmontBuyInvoiceResult(response.invoice || {});
+  };
+
+  const handleAugmontSellCreate = async () => {
+    setActionState(setAugmontSellOrderResult, setAugmontSellOrderError);
+
+    if (!merchantId) {
+      setAugmontSellOrderError("Merchant ID is missing.");
+      return;
+    }
+
+    const phoneNumber = String(augmontSellPhoneNumber || profile?.mobileNumber || "").trim();
+    const merchantTransactionId = String(augmontSellMerchantTransactionId || generateAugmontTxnId("AUGSEL")).trim();
+
+    if (!uniqueId || !augmontSellQuantity.trim() || !phoneNumber) {
+      setAugmontSellOrderError("uniqueId, quantity, and phone number are required.");
+      return;
+    }
+
+    setAugmontSellOrderLoading(true);
+    const response = await createAugmontSellOrder({
+      merchantId,
+      request: {
+        uniqueId,
+        phoneNumber,
+        merchantTransactionId,
+        metalType: augmontSellMetalType,
+        quantity: augmontSellQuantity.trim(),
+        userBankId: augmontSellUserBankId.trim()
+      }
+    });
+    setAugmontSellOrderLoading(false);
+
+    if (!response?.ok) {
+      setAugmontSellOrderError(response?.message || "Unable to create sell order.");
+      return;
+    }
+
+    setAugmontSellOrderResult(response.order || {});
+    setAugmontSellInvoiceTxId(String(response.order?.transactionId || response.order?.merchantTransactionId || merchantTransactionId || "").trim());
+    setAugmontSellMerchantTransactionId(merchantTransactionId);
+  };
+
+  const handleAugmontSellInvoice = async () => {
+    setActionState(setAugmontSellInvoiceResult, setAugmontSellInvoiceError);
+
+    if (!merchantId) {
+      setAugmontSellInvoiceError("Merchant ID is missing.");
+      return;
+    }
+
+    const transactionId = String(augmontSellInvoiceTxId || augmontSellOrderResult?.transactionId || "").trim();
+    if (!transactionId) {
+      setAugmontSellInvoiceError("Sell transaction ID is required.");
+      return;
+    }
+
+    setAugmontSellInvoiceLoading(true);
+    const response = await fetchAugmontSellInvoice({ merchantId, transactionId });
+    setAugmontSellInvoiceLoading(false);
+
+    if (!response?.ok) {
+      setAugmontSellInvoiceError(response?.message || "Unable to fetch sell invoice.");
+      return;
+    }
+
+    setAugmontSellInvoiceResult(response.invoice || {});
   };
 
   const runSafeGoldAction = async (action) => {
@@ -758,6 +921,85 @@ export default function GoldPlatformPage() {
                     <JsonPanel title="Augmont Action Result" value={augmontActionResult} />
                   </SectionCard>
                 </div>
+
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <SectionCard title="Augmont Buy Order" description="Trigger buy/create from the dashboard and inspect the request in Network.">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Product SKU" hint="Uses the selected product from Fetch Product above.">
+                        <input value={sku} onChange={(event) => setSku(event.target.value)} className={inputClassName} placeholder="AU999GC01R" />
+                      </Field>
+                      <Field label="Quantity">
+                        <input value={augmontBuyQuantity} onChange={(event) => setAugmontBuyQuantity(event.target.value)} className={inputClassName} placeholder="1.0000" />
+                      </Field>
+                      <Field label="Phone number">
+                        <input value={augmontBuyPhoneNumber} onChange={(event) => setAugmontBuyPhoneNumber(event.target.value)} className={inputClassName} placeholder="9963710150" />
+                      </Field>
+                      <Field label="Mode of payment">
+                        <select value={augmontBuyModeOfPayment} onChange={(event) => setAugmontBuyModeOfPayment(event.target.value)} className={selectClassName}>
+                          <option value="UPI" className="bg-[#0b0b0b] text-white">UPI</option>
+                          <option value="NET_BANKING" className="bg-[#0b0b0b] text-white">NET_BANKING</option>
+                          <option value="CARD" className="bg-[#0b0b0b] text-white">CARD</option>
+                        </select>
+                      </Field>
+                      <Field label="Merchant txId">
+                        <input value={augmontBuyMerchantTransactionId} onChange={(event) => setAugmontBuyMerchantTransactionId(event.target.value)} className={inputClassName} placeholder="Optional merchant txId" />
+                      </Field>
+                      <Field label="Transaction ID for invoice">
+                        <input value={augmontBuyInvoiceTxId} onChange={(event) => setAugmontBuyInvoiceTxId(event.target.value)} className={inputClassName} placeholder="Filled after buy create" />
+                      </Field>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button type="button" onClick={handleAugmontBuyCreate} disabled={augmontBuyOrderLoading} className={`${actionButtonClassName} w-full`}>
+                        {augmontBuyOrderLoading ? "Submitting..." : "Create Buy Order"}
+                      </button>
+                      <button type="button" onClick={handleAugmontBuyInvoice} disabled={augmontBuyInvoiceLoading} className={`${actionButtonClassName} w-full`}>
+                        {augmontBuyInvoiceLoading ? "Fetching..." : "Fetch Buy Invoice"}
+                      </button>
+                    </div>
+                    {augmontBuyOrderError ? <p className="text-sm text-red-200">{augmontBuyOrderError}</p> : null}
+                    {augmontBuyInvoiceError ? <p className="text-sm text-red-200">{augmontBuyInvoiceError}</p> : null}
+                    <JsonPanel title="Buy Order Result" value={augmontBuyOrderResult} />
+                    <JsonPanel title="Buy Invoice Result" value={augmontBuyInvoiceResult} />
+                  </SectionCard>
+
+                  <SectionCard title="Augmont Sell Order" description="Trigger sell/create from the dashboard and inspect the request in Network.">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Metal type">
+                        <select value={augmontSellMetalType} onChange={(event) => setAugmontSellMetalType(event.target.value)} className={selectClassName}>
+                          <option value="gold" className="bg-[#0b0b0b] text-white">gold</option>
+                          <option value="silver" className="bg-[#0b0b0b] text-white">silver</option>
+                        </select>
+                      </Field>
+                      <Field label="Quantity">
+                        <input value={augmontSellQuantity} onChange={(event) => setAugmontSellQuantity(event.target.value)} className={inputClassName} placeholder="0.0500" />
+                      </Field>
+                      <Field label="Phone number">
+                        <input value={augmontSellPhoneNumber} onChange={(event) => setAugmontSellPhoneNumber(event.target.value)} className={inputClassName} placeholder="9963710150" />
+                      </Field>
+                      <Field label="Saved bank id">
+                        <input value={augmontSellUserBankId} onChange={(event) => setAugmontSellUserBankId(event.target.value)} className={inputClassName} placeholder="userBankId" />
+                      </Field>
+                      <Field label="Merchant txId">
+                        <input value={augmontSellMerchantTransactionId} onChange={(event) => setAugmontSellMerchantTransactionId(event.target.value)} className={inputClassName} placeholder="Optional merchant txId" />
+                      </Field>
+                      <Field label="Transaction ID for invoice">
+                        <input value={augmontSellInvoiceTxId} onChange={(event) => setAugmontSellInvoiceTxId(event.target.value)} className={inputClassName} placeholder="Filled after sell create" />
+                      </Field>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button type="button" onClick={handleAugmontSellCreate} disabled={augmontSellOrderLoading} className={`${actionButtonClassName} w-full`}>
+                        {augmontSellOrderLoading ? "Submitting..." : "Create Sell Order"}
+                      </button>
+                      <button type="button" onClick={handleAugmontSellInvoice} disabled={augmontSellInvoiceLoading} className={`${actionButtonClassName} w-full`}>
+                        {augmontSellInvoiceLoading ? "Fetching..." : "Fetch Sell Invoice"}
+                      </button>
+                    </div>
+                    {augmontSellOrderError ? <p className="text-sm text-red-200">{augmontSellOrderError}</p> : null}
+                    {augmontSellInvoiceError ? <p className="text-sm text-red-200">{augmontSellInvoiceError}</p> : null}
+                    <JsonPanel title="Sell Order Result" value={augmontSellOrderResult} />
+                    <JsonPanel title="Sell Invoice Result" value={augmontSellInvoiceResult} />
+                  </SectionCard>
+                </div>
               </div>
             ) : (
               <div className="mt-8 space-y-6">
@@ -958,3 +1200,4 @@ export default function GoldPlatformPage() {
     </div>
   );
 }
+

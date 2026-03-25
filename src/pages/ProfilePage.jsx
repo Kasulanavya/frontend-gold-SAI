@@ -9,8 +9,8 @@ import {
   createAugmontUserBank,
   deleteAugmontUserBank,
   fetchAugmontAddresses,
-  fetchAugmontKycProfile,
   fetchAugmontPassbook,
+  fetchAugmontKycProfile,
   fetchAugmontUserBanks,
   fetchAugmontUserProfile,
   getAugmontUser,
@@ -219,7 +219,6 @@ export default function Profile() {
       let kycProfileResponse = null;
       let addressListResponse = null;
       let bankListResponse = null;
-      let passbookResponse = null;
 
       for (const candidateId of augmontIdCandidates) {
         const profileResponse = await fetchAugmontUserProfile(candidateId);
@@ -227,16 +226,14 @@ export default function Profile() {
         if (profileResponse?.ok) {
           resolvedAugmontId = candidateId;
           userProfileResponse = profileResponse;
-          const [kycResponse, addressesResponse, banksResponse, userPassbookResponse] = await Promise.all([
+          const [kycResponse, addressesResponse, banksResponse] = await Promise.all([
             fetchAugmontKycProfile(candidateId),
             fetchAugmontAddresses(candidateId),
-            fetchAugmontUserBanks(candidateId),
-            fetchAugmontPassbook(candidateId)
+            fetchAugmontUserBanks(candidateId)
           ]);
           kycProfileResponse = kycResponse;
           addressListResponse = addressesResponse;
           bankListResponse = banksResponse;
-          passbookResponse = userPassbookResponse;
           break;
         }
 
@@ -258,7 +255,6 @@ export default function Profile() {
       const balance = safeGoldBalanceResponse?.balance || {};
       const addresses = addressListResponse?.addresses || [];
       const banks = bankListResponse?.banks || [];
-      const passbook = passbookResponse?.passbook || {};
       const transactions = safeGoldTransactionsResponse?.transactions || [];
       const transactionMeta = safeGoldTransactionsResponse?.meta || {
         previous: null,
@@ -346,8 +342,8 @@ export default function Profile() {
         addresses: Array.isArray(addresses) ? addresses : [],
         banks: Array.isArray(banks) ? banks : [],
         passbook: {
-          goldGrms: String(passbook?.goldGrms || "0.0000"),
-          silverGrms: String(passbook?.silverGrms || "0.0000")
+          goldGrms: "0.0000",
+          silverGrms: "0.0000"
         },
         linkedProviders: {
           augmontUniqueId: resolvedAugmontId,
@@ -1027,13 +1023,13 @@ export default function Profile() {
             <div className="rounded-lg border border-white/10 bg-black/20 p-4">
               <p className="text-xs uppercase tracking-wide text-white/50">Gold Grams</p>
               <h4 className="mt-2 text-2xl font-bold text-yellow-400">
-                {loading ? "Loading..." : String(backendStats.passbook.goldGrms || "0.0000")}
+                {loading ? "Loading..." : String(backendStats.passbook?.goldGrms || "0.0000")}
               </h4>
             </div>
             <div className="rounded-lg border border-white/10 bg-black/20 p-4">
               <p className="text-xs uppercase tracking-wide text-white/50">Silver Grams</p>
               <h4 className="mt-2 text-2xl font-bold text-white">
-                {loading ? "Loading..." : String(backendStats.passbook.silverGrms || "0.0000")}
+                {loading ? "Loading..." : String(backendStats.passbook?.silverGrms || "0.0000")}
               </h4>
             </div>
           </div>

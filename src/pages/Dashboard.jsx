@@ -160,7 +160,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap justify-center gap-4 lg:justify-start">
                 <button
                   type="button"
-                  onClick={() => navigate("/portfolio?tab=buy")}
+                  onClick={() => navigate("/portfolio?tab=buy") }
                   className="rounded-full bg-[#FBBF24] px-7 py-3 text-sm font-semibold text-black transition hover:scale-[1.03] hover:bg-[#f5c84c]"
                 >
                   Buy Gold
@@ -364,3 +364,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
