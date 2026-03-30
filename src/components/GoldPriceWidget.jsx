@@ -88,6 +88,7 @@ function GoldPriceWidget() {
   const [sellInvoiceLoading, setSellInvoiceLoading] = useState(false);
   const [sellInvoiceError, setSellInvoiceError] = useState("");
   const [sellInvoiceResult, setSellInvoiceResult] = useState({});
+  const [showSellDetails, setShowSellDetails] = useState(false);
 
   const loadRates = useCallback(async () => {
     setIsLoading(true);
@@ -365,6 +366,15 @@ function GoldPriceWidget() {
     setSellTransactionId(transactionId);
   };
 
+  const handleSellAction = () => {
+    if (!showSellDetails) {
+      setShowSellDetails(true);
+      return;
+    }
+
+    void handleSellOrder();
+  };
+
   const handleSellInvoice = async () => {
     setSellInvoiceLoading(true);
     setSellInvoiceError("");
@@ -633,37 +643,39 @@ function GoldPriceWidget() {
                     </div>
                   </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">Account Name</p>
-                    <input
-                      value={sellAccountName}
-                      onChange={(event) => setSellAccountName(event.target.value)}
-                      placeholder="Enter account name"
-                      className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
-                    />
-                  </div>
+                {showSellDetails ? (
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-white/45">Account Name</p>
+                      <input
+                        value={sellAccountName}
+                        onChange={(event) => setSellAccountName(event.target.value)}
+                        placeholder="Enter account name"
+                        className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
+                      />
+                    </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">Account Number</p>
-                    <input
-                      value={sellAccountNumber}
-                      onChange={(event) => setSellAccountNumber(event.target.value.replace(/\D/g, ""))}
-                      placeholder="Enter account number"
-                      className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
-                    />
-                  </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-white/45">Account Number</p>
+                      <input
+                        value={sellAccountNumber}
+                        onChange={(event) => setSellAccountNumber(event.target.value.replace(/\D/g, ""))}
+                        placeholder="Enter account number"
+                        className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
+                      />
+                    </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">IFSC Code</p>
-                    <input
-                      value={sellIfscCode}
-                      onChange={(event) => setSellIfscCode(event.target.value.toUpperCase())}
-                      placeholder="Enter IFSC code"
-                      className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
-                    />
+                    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-white/45">IFSC Code</p>
+                      <input
+                        value={sellIfscCode}
+                        onChange={(event) => setSellIfscCode(event.target.value.toUpperCase())}
+                        placeholder="Enter IFSC code"
+                        className="mt-3 w-full rounded-xl border border-white/10 bg-[#0b0b0b] px-4 py-3 text-white outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : null}
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -671,10 +683,10 @@ function GoldPriceWidget() {
                     <button
                       key={label}
                       type="button"
-                      onClick={label === "Buy" ? handleBuyOrder : handleSellOrder}
+                      onClick={label === "Buy" ? handleBuyOrder : handleSellAction}
                       className="rounded-full border border-yellow-500/35 px-5 py-2.5 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-500 hover:text-black"
                     >
-                      {label}
+                      {label === "Sell" && !showSellDetails ? "Sell" : label === "Sell" ? "Confirm Sell" : label}
                     </button>
                   ))}
                 </div>
@@ -732,10 +744,10 @@ function GoldPriceWidget() {
                     <button
                       key={`${label}-sip`}
                       type="button"
-                      onClick={label === "Buy" ? handleBuyOrder : handleSellOrder}
+                      onClick={label === "Buy" ? handleBuyOrder : handleSellAction}
                       className="rounded-full border border-yellow-500/35 px-5 py-2.5 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-500 hover:text-black"
                     >
-                      {label}
+                      {label === "Sell" && !showSellDetails ? "Sell" : label === "Sell" ? "Confirm Sell" : label}
                     </button>
                   ))}
                 </div>
